@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useRef, useState} from 'react'
 import './App.css'
 import {
     doPostRequest, getErrorRequestState,
@@ -15,10 +15,16 @@ function App() {
   const [conversation, setConversation] = useState<ChatRequestResult []>([])
   const [conversationId, setConversationId] = useState<number | null>(null)
 
+  const bottomRef = useRef<HTMLSpanElement>(null);
+
   return (
     <>
-      <div className="conversation-area">
-        <textarea className="chat-window" value={getThread()} readOnly />
+      <div className="conversation-area conversation-area-test">
+        { conversation
+          .map(exchange => <ConversationExchange exchange={exchange} />)
+        }
+
+        <span ref={bottomRef}></span>
       </div>
 
       <div className="post-area">
@@ -39,8 +45,6 @@ function App() {
       </div>
 
       <div>
-
-
         <div>
           <PromptResult {...promptRequest} />
           </div>
@@ -61,22 +65,39 @@ function App() {
           setPromptRequest(getSuccessRequestState<ChatRequestResult>(result))
           setConversation([...conversation, result])
           setConversationId(result.conversationId)
+
+          setInProgressPrompt("");
+
+        setTimeout(() => {
+          bottomRef.current?.scrollIntoView({behavior: 'smooth'});
+        }, 0);
       } catch (error) {
           // @ts-expect-error error will likely have a message
           const message = error.message ? error.message : 'unknown error';
           setPromptRequest(getErrorRequestState(message))
       }
   }
-
-  function getThread() {
-    return conversation.map((result) => {
-      return `
-user: ${result.prompt}
-
-bot: ${result.response}
-      `
-    }).join("\n\n")
-  }
 }
 
 export default App
+
+
+function ConversationExchange({ exchange }: { exchange: ChatRequestResult}) {
+    return <>
+      <div>
+        <label className="exchange-user-label">User: </label>
+
+        <div>
+          <pre className="exchange-value">{exchange.prompt}</pre>
+        </div>
+      </div>
+      <div>
+        <label className="exchange-user-label">Bot: </label>
+        <div>
+          <pre className="exchange-value">
+            {exchange.response}
+          </pre>
+        </div>
+      </div>
+    </>;
+}

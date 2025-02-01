@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
@@ -81,9 +83,26 @@ public class ConversationService {
             return "";
         }
 
-        return chatResponse
-            .replace("<think>", "")
-            .replace("</think>", "")
-            .trim();
+        final var thinkingAndResponding = splitThinking(chatResponse);
+
+        log.info(thinkingAndResponding.toString());
+
+        return thinkingAndResponding.response();
+    }
+
+    public ThinkingAndResponding splitThinking(final String chatResponse) {
+        final int startOpenThinkTag = chatResponse.indexOf("<think>");
+
+        if (startOpenThinkTag >= 0) {
+            final int startCloseThinkTag = chatResponse.indexOf("</think>");
+
+            final var thinking = chatResponse.substring(startOpenThinkTag + 7, startCloseThinkTag);
+            final var response = chatResponse.substring(0, startOpenThinkTag) +
+                chatResponse.substring(startCloseThinkTag + 8);
+
+            return new ThinkingAndResponding(thinking.trim(), response.trim());
+        } else {
+            return new ThinkingAndResponding("", chatResponse.trim());
+        }
     }
 }
