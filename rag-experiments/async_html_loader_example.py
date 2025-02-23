@@ -1,4 +1,5 @@
 # simple example from chapter 3, loading data from wikipedia
+
 from langchain_community.document_loaders import AsyncHtmlLoader
 from langchain_community.document_transformers import Html2TextTransformer
 from langchain_text_splitters import CharacterTextSplitter
@@ -7,6 +8,7 @@ from langchain_experimental.text_splitter import SemanticChunker
 # from langchain_openai.embeddings import OpenAIEmbeddings
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.embeddings import OllamaEmbeddings
+import time
 
 url="https://en.wikipedia.org/wiki/2023_Cricket_World_Cup"
 
@@ -103,7 +105,15 @@ text="\n".join([x.page_content for x in data_transformed])
 embedding_function = OllamaEmbeddings(model="deepseek-r1:8b")
 text_splitter = SemanticChunker(embedding_function)
 
+start = time.perf_counter()
+
 documents = text_splitter.create_documents([text])
+
+end = time.perf_counter()
+elapsed = end - start
+
+
+print(f'Time taken: {elapsed}')
 
 # Print the resulting chunks
 for doc in documents:

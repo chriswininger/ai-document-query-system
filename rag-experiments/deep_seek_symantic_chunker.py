@@ -3,7 +3,7 @@
 from langchain_community.document_loaders import AsyncHtmlLoader
 from langchain_community.document_transformers import Html2TextTransformer
 from langchain_experimental.text_splitter import SemanticChunker
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain.embeddings import OllamaEmbeddings
 
 import time
 
@@ -20,9 +20,7 @@ html2text = Html2TextTransformer()
 data_transformed = html2text.transform_documents(data)
 
 text=data_transformed[0].page_content
-model_name = "BAAI/bge-large-en-v1.5"
-encode_kwargs = {'normalize_embeddings': True}
-text_splitter = SemanticChunker(HuggingFaceEmbeddings(model_name=model_name, encode_kwargs=encode_kwargs))
+text_splitter = SemanticChunker(OllamaEmbeddings(model="deepseek-r1:8b"))
 
 start = time.perf_counter()
 
@@ -31,8 +29,4 @@ documents = text_splitter.create_documents([text])
 end = time.perf_counter()
 
 print(f'Time take: {end - start}')
-
 print(f"Number of Documents: {len(documents)}")
-for doc in documents:
-  print(doc.page_content)
-  print("---")
