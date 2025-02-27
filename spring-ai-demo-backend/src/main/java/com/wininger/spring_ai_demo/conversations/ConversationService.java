@@ -1,21 +1,18 @@
 package com.wininger.spring_ai_demo.conversations;
 
-import com.wininger.spring_ai_demo.api.ChatController;
 import com.wininger.spring_ai_demo.api.ChatRequest;
 import com.wininger.spring_ai_demo.api.ChatResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.ChatClient.ChatClientRequestSpec;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.InMemoryChatMemory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
@@ -60,10 +57,18 @@ public class ConversationService {
 
         log.info("processing /api/v1/chat at {}", startTime);
 
-        final String modelResponse = chatClient
-            .prompt()
-            .user(chatRequest.userPrompt())
-            .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId))
+        final ChatClientRequestSpec prompt = chatClient 
+            .prompt() 
+            .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId));
+
+        prompt.user(chatRequest.userPrompt());
+
+        if (nonNull(chatRequest.systemPrompt())) {
+          prompt.system(chatRequest.systemPrompt());
+        }
+
+
+        final String modelResponse = prompt
             .call()
             .content();
 

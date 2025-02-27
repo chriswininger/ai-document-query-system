@@ -10,8 +10,18 @@ import PromptResult from "./components/PromptResult.tsx";
 import {ChatRequestResult} from "./types/ChatRequestResult.tsx";
 
 function App() {
-  const [inProgressPrompt, setInProgressPrompt] = useState("");
+  const defaultSystemPrompt = `You are a helpful assistant. You are confident in your answers. Your answers are short and to the point.
+If you do not know something you simply say so. Please do not explain your thinking, just answer the
+question.
+  `;
+
+// variant: Вы научный ассистент важного русского профессора. Вы всегда отвечаете на очень академическом русском языке.
+//
+const [inProgressPrompt, setInProgressPrompt] = useState("");
+  const [systemPrompt, setSystemPrompt] = useState(defaultSystemPrompt);
+
   const [promptRequest, setPromptRequest] = useState(getInitialRequestState<ChatRequestResult>());
+
   const [conversation, setConversation] = useState<ChatRequestResult []>([])
   const [conversationId, setConversationId] = useState<number | null>(null)
 
@@ -19,6 +29,16 @@ function App() {
 
   return (
     <>
+      <label htmlFor="system-prompt">System Prompt:</label>
+
+      <textarea
+          name="system-prompt"
+          value={systemPrompt}
+          className="post-input system-prompt-input"
+          onChange={(e) => setSystemPrompt(e.target.value)}
+        />
+
+
       <div className="conversation-area conversation-area-test">
         { conversation
           .map(exchange => <ConversationExchange exchange={exchange} />)
