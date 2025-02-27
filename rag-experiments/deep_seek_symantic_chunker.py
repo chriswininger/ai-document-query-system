@@ -20,7 +20,7 @@ html2text = Html2TextTransformer()
 data_transformed = html2text.transform_documents(data)
 
 text=data_transformed[0].page_content
-text_splitter = SemanticChunker(OllamaEmbeddings(model="deepseek-r1:8b"))
+text_splitter = SemanticChunker(OllamaEmbeddings(model="deepseek-r1:7b"))
 
 start = time.perf_counter()
 

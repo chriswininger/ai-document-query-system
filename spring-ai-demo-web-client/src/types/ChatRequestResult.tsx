@@ -3,5 +3,6 @@ export type ChatRequestResult = {
     response: string,
     model: string,
     conversationId: number,
-    requestTimeStartTime: number
+    requestTimeStartTime: string
+    requestEndTime: string
 }

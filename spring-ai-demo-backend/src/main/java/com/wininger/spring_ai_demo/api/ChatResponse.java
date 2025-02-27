@@ -7,5 +7,6 @@ public record ChatResponse(
         String response,
         String model,
         int conversationId,
-        Date requestTimeStartTime
+        Date requestTimeStartTime,
+        Date requestEndTime
 ) {}

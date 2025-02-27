@@ -67,14 +67,16 @@ public class ConversationService {
             .call()
             .content();
 
-        log.info("finished processing /api/v1/chat {} at", new Date());
+        var endTime = new Date();
+        log.info("finished processing /api/v1/chat {} at", endTime);
 
         return new ChatResponse(
             chatRequest.userPrompt(),
             cleanResponse(modelResponse),
             llmModel,
             conversationId,
-            startTime
+            startTime,
+            endTime
         );
     }
 
