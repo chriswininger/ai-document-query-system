@@ -17,6 +17,8 @@ a quick and dirty place to put it
 
 ## Notes
 
+* I've placed data to ingest in the data folder but am not checking it in, because copyrights :-)
+
 I'm going to play with https://pymorphy2.readthedocs.io/en/stable/user/guide.html
 
 `pip install pymorphy2`
