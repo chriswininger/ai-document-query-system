@@ -10,7 +10,7 @@ feed them into my digital flag card system
 I will eventually move this over to a proper place in another project, but this was
 a quick and dirty place to put it
 
-## key words to help me find this later :-)
+## keywords to help me find this later :-)
 
 * Russian, Vocabulary, Lemmatization, nominative case, translation, pymorph2,
   nltk, NLP
@@ -18,13 +18,14 @@ a quick and dirty place to put it
 ## Notes
 
 * I've placed data to ingest in the data folder but am not checking it in, because copyrights :-)
+* For my own reference the raw text versions of books I am using are stored on the thumb drive connected to the network
+  router as well as on the Thinkpad machine, look there if you can't find them :-)
+* This is the project where I was doing similar experiments a while ago https://github.com/chriswininger/russianflashcards
+  I will probably eventually move stuff there though I suspect I may not care to re-use much of what's
+  there
 
-I'm going to play with https://pymorphy2.readthedocs.io/en/stable/user/guide.html
-
-`pip install pymorphy2`
-
-also playing with `pip install nltk`
-
-`python -m nltk.downloader popular`
-`python -m nltk.downloader punkt-tab`
-nltk.download('punkt_tab')
+### Libraries Used
+* [pymorph2](https://pymorphy2.readthedocs.io/en/stable/user/guide.html): This is the best library
+  I've found for getting the nominative case of Russian words. All the docs are in Russian so you know its
+  good `pip install pymorphy2`
+* Also using nltk `pip install nltk`
