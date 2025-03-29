@@ -16,6 +16,9 @@ nltk.download('punkt_tab')
 def main():
     input_file = './data/harry_potter_book_1.txt'
 
+    # cache of work done in earlier runs so we don't have to re-translate
+    cache = read_csv_file('./output/cache.csv')
+
     # === Get Initial List of Word From Book ===
     print(f"reading in data '{input_file}")
     input_data = read_file(input_file)
@@ -32,6 +35,7 @@ def main():
     )
 
     # === Normalize the Word Into Nominative Case ===
+    # TODO: We could also probably save tags, for example it could be interesting to focus on verbs vs nouns
     morph = pymorphy2.MorphAnalyzer()
     normalized_words = [{ 'word': entry['word'], 'normalized': morph.parse(entry['word'])[0].normal_form, 'count': entry['count'] } for entry in unique_words_sorted_by_popularity]
     normalized_words = list(filter_word_objs_less_than(normalized_words))
@@ -44,7 +48,7 @@ def main():
 
     # === Translate the Words ===
     print('being translated')
-    with_translations = add_translation(normalized_words)
+    with_translations = add_translation(normalized_words, cache)
     print('done translating')
 
     save_to_csv(
@@ -61,7 +65,15 @@ def read_file(filename):
     except FileNotFoundError:
         print(f"The file '{filename}' does not exist.")
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        print(f"An unexpected exception occurred: {e}")
+
+def read_csv_file(filename):
+    try:
+        with open(filename, 'r') as file:
+            return list(csv.DictReader(file))
+    except Exception as e:
+        print(f"An unexpected exception occurred: {e}")
+
 
 def to_unique_words(tokens):
     words = {}
@@ -113,6 +125,7 @@ def filter_names(words):
         'страунс', 'страунса', 'страунсом', 'страунсу', 'страунсе',
         'гермиона','гермионой', 'гермионы', 'гермионе', 'гермиону',
         'гриффиндора', 'гриффиндор', 'гриффиндору', 'гриффиндоре',
+        'думбльдора', 'думбльдору', 'думбльдором', 'думбльдоре',
         'гарри',
         'рон', 'рона',
         'дудли',
@@ -153,7 +166,7 @@ def consolidate_normalized_word(normalized_words_raw):
         reverse=True
     )
 
-def add_translation(normalized_words):
+def add_translation(normalized_words, cache):
     with_translation = []
     cnt = 0
 
@@ -161,20 +174,32 @@ def add_translation(normalized_words):
     for entry in normalized_words:
         word = entry['normalized']
 
-        try:
-            translation = translate_from_russian_to_english(word)
-            with_translation.append({ **entry, 'translation': translation })
-            cnt += 1
+        cached_translation = find_translation_in_cache(cache, word)
 
-            print(f"translated {cnt}/{size}")
-        except Exception as ex:
-            print(f'Error translating word "{word}" at count: ${cnt}: "${ex}"')
-            with_translation.append({**entry, 'translation': 'ERROR' })
+        if cached_translation is not None and cached_translation != 'ERROR':
+            with_translation.append({**entry, 'translation': cached_translation})
+        else:
+            try:
+                translation = translate_from_russian_to_english(word)
+                with_translation.append({ **entry, 'translation': translation })
+                cnt += 1
+
+                print(f"translated {cnt}/{size}")
+            except Exception as ex:
+                print(f'Error translating word "{word}" at count: ${cnt}: "${ex}"')
+                with_translation.append({**entry, 'translation': 'ERROR' })
 
     return  with_translation
 
 def translate_from_russian_to_english(word):
     return ts.server.bing(word, from_language='ru', to_language='en', professional_field='general')
+
+def find_translation_in_cache(cache, word_to_find):
+    for entry in cache:
+        if entry['normalized'] == word_to_find:
+            return entry['translation']
+
+    return None
 
 if __name__ == '__main__':
     main()
