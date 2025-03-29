@@ -17,7 +17,7 @@ def main():
     input_file = './data/harry_potter_book_1.txt'
 
     # cache of work done in earlier runs so we don't have to re-translate
-    cache = read_csv_file('./output/cache.csv')
+    cache = read_csv_file('output/cache.csv.bk')
 
     # === Get Initial List of Word From Book ===
     print(f"reading in data '{input_file}")
