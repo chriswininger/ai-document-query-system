@@ -4,8 +4,11 @@ import time
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
+from langchain_community.vectorstores import FAISS
+
+
 def main():
-    if (len(sys.argv) < 2):
+    if (len(sys.argv) < 1):
         print('file path is a required argument')
         sys.exit(1)
 
@@ -27,7 +30,33 @@ def main():
     end = time.perf_counter()
 
     print(f'Time taken to chunk: {end - start}')
-    print(f"Number of Chunks: {len(chunks)}")
+    print(f"Number of Chuunks: {len(chunks)}")
+
+    # === Embed the documents
+    embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-l6-v2")
+
+    # '!!! WE'RE NOT DOING ANYTHING WITH chunk_embedding, do we need this, does adding docs
+    # to vector db automatically convert them?
+    start = time.perf_counter()
+    chunk_embedding = embeddings.embed_documents(
+            [chunk.page_content for chunk in chunks])
+    end = time.perf_counter()
+
+    print(f'Time taken to embed: {end - start}')
+    print(f"Dymention of the embedding: {len(chunk_embedding[0])}")
+
+    db = FAISS.from_documents(chunks, embeddings)
+    # Check the number of chunks that have been indexed
+    print(f"Number of chunks indexed: {db.index.ntotal}")
+
+    # === Save For Later ===
+    #   we can load and save to the db with
+    #   db.save_local(folder_path)/FAISS.load_local(folder_path)
+    timestamp = int(time.time())
+    db_file_path = f"./output/db_{timestamp}"
+    db.save_local(db_file_path)
+
 
 def read_file(filename):
     try:
