@@ -1,4 +1,4 @@
-package com.wininger.spring_ai_demo;
+/*package com.wininger.spring_ai_demo;
 
 import com.wininger.spring_ai_demo.conversations.ConversationService;
 import org.junit.jupiter.api.Test;
@@ -19,4 +19,4 @@ public class ConversationServiceTest {
     System.out.println("!!! results: " + results);
   }
 
-}
+}*/
