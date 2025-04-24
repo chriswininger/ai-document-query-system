@@ -23,10 +23,13 @@ def main():
     print(f"reading in data '{input_file}")
     input_data = read_file(input_file)
 
-    tokens = nltk.word_tokenize(input_data, language='english')
+    tokens = nltk.word_tokenize(input_data, language='russian')
+    sentences = nltk.sent_tokenize(input_data, language='russian')
+    sentences = [s.lower() for s in sentences]
+
     print(f'read {len(tokens)} tokens')
 
-    unique_words_sorted_by_popularity = to_unique_words(tokens)
+    unique_words_sorted_by_popularity = to_unique_words(tokens, sentences)
     print(f'unique_words_sorted_by_popularity: {len(unique_words_sorted_by_popularity)}')
 
     save_to_csv(
@@ -37,9 +40,7 @@ def main():
     # === Normalize the Word Into Nominative Case ===
     # TODO: We could also probably save tags, for example it could be interesting to focus on verbs vs nouns
     morph = pymorphy2.MorphAnalyzer()
-    normalized_words = [{ 'word': entry['word'], 'normalized': morph.parse(entry['word'])[0].normal_form, 'count': entry['count'] } for entry in unique_words_sorted_by_popularity]
-    normalized_words = list(filter_word_objs_less_than(normalized_words))
-    normalized_words = consolidate_normalized_word(normalized_words)
+    normalized_words = normalize_values(unique_words_sorted_by_popularity)
 
     save_to_csv(
         './output/' + input_name_to_output_name(input_file, '_nominative_case_unique_words.csv'),
@@ -75,7 +76,7 @@ def read_csv_file(filename):
         print(f"An unexpected exception occurred: {e}")
 
 
-def to_unique_words(tokens):
+def to_unique_words(tokens, sentences):
     words = {}
 
     tokens = [t.lower() for t in tokens]
@@ -89,7 +90,7 @@ def to_unique_words(tokens):
             words[word] += 1
 
     return sorted(
-        [{ 'word': w, 'count': words[w] } for w in words],
+        [{ 'word': w, 'count': words[w], 'sentence': find_sentences_with_word(sentences, w)[0] } for w in words],
         key=lambda w: w['count'],
         reverse=True
     )
@@ -126,6 +127,7 @@ def filter_names(words):
         'гермиона','гермионой', 'гермионы', 'гермионе', 'гермиону',
         'гриффиндора', 'гриффиндор', 'гриффиндору', 'гриффиндоре',
         'думбльдора', 'думбльдору', 'думбльдором', 'думбльдоре',
+        'гриффиндорской', 'гриффиндорскую', 'гриффиндорский', 'гриффиндорского', 'гриффиндорские',
         'гарри',
         'рон', 'рона',
         'дудли',
@@ -143,6 +145,7 @@ def filter_names(words):
         'невилл',
         'уизли',
         'хогварц', ' хогварце', 'хогварца',
+        'trademarks', 'isbn', '978-1-78110-188-9', 'related', 'indicia', 'characters', 'names'
     ]
 
     return filter(lambda w: w not in names, words)
@@ -154,7 +157,9 @@ def consolidate_normalized_word(normalized_words_raw):
         key = entry['normalized']
         if key in unique_entries:
             unique_entries[key]['count'] += entry['count']
-            unique_entries[key]['word'] += '; ' + entry['word']
+            unique_entries[key]['word'] += ';; ' + entry['word']
+            unique_entries[key]['sentence'] += ';; ' + entry['sentence']
+            unique_entries[key]['tags'] += ';;' + entry['tags']
         else:
             unique_entries[key] = entry
 
@@ -200,6 +205,28 @@ def find_translation_in_cache(cache, word_to_find):
             return entry['translation']
 
     return None
+
+def find_sentences_with_word (sentences, word):
+    return list(filter(lambda sentence: word in sentence, sentences))
+
+def normalize_values(unique_words_sorted_by_popularity):
+    morph = pymorphy2.MorphAnalyzer()
+    normalized_words = []
+    for entry in unique_words_sorted_by_popularity:
+        info = morph.parse(entry['word'])[0]
+
+        tags = [info.tag.POS, info.tag.aspect, info.tag.gender]
+        tags = list(filter(lambda tag: tag is not None, tags))
+
+        normalized_words.append({
+            **entry,
+            'normalized': info.normal_form,
+            'tags': ','.join(tags)
+        })
+
+    normalized_words = list(filter_word_objs_less_than(normalized_words))
+
+    return consolidate_normalized_word(normalized_words)
 
 if __name__ == '__main__':
     main()
