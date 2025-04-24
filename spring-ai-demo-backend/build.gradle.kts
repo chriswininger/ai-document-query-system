@@ -109,30 +109,6 @@ jooq {
 						name = "org.jooq.meta.postgres.PostgresDatabase"
 						inputSchema = "public"
 						includes = ".*"
-						// Add these forcedTypes to handle PostgreSQL specific types
-						forcedTypes.addAll(listOf(
-							org.jooq.meta.jaxb.ForcedType().apply {
-								name = "JSONB"
-								includeTypes = "(?i:jsonb)"
-							}
-						))
-						// Add these properties to handle the metadata issue
-						properties =  listOf(
-							org.jooq.meta.jaxb.Property().apply {
-								key = "sql.dialect"
-								value = "POSTGRES"
-							},
-							org.jooq.meta.jaxb.Property().apply {
-								key = "parseIgnoreUnknownObjects"
-								value = "true"
-							},
-							org.jooq.meta.jaxb.Property().apply {
-								key = "readSequences"
-								value = "false"
-							}
-						)
-
-
 					}
 					target.apply {
 						packageName = "com.wininger.spring_ai_demo.jooq.generated"
