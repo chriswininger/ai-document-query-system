@@ -36,6 +36,8 @@ def main():
     embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-l6-v2")
 
+    # '!!! WE'RE NOT DOING ANYTHING WITH chunk_embedding, do we need this, does adding docs
+    # to vector db automatically convert them?
     start = time.perf_counter()
     chunk_embedding = embeddings.embed_documents(
             [chunk.page_content for chunk in chunks])
