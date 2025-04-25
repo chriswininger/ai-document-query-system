@@ -22,7 +22,14 @@ def main():
     text_splitter = SemanticChunker(
             HuggingFaceEmbeddings(
                 model_name=model_name,
-                encode_kwargs=encode_kwargs))
+                encode_kwargs=encode_kwargs
+            ),
+    # https://github.com/langchain-ai/langchain/discussions/18802#discussioncomment-9571544
+    # This pushes it towards smaller chunks because our doc store does no like some of the large
+    # chunks this was producing
+    breakpoint_threshold_type="percentile",
+    breakpoint_threshold_amount=80
+    )
 
     start = time.perf_counter()
 

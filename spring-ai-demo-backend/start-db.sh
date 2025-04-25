@@ -10,4 +10,4 @@ docker run --name spring-ai-demo-db \
   -e POSTGRES_USER=postgres \
   -e POSTGRES_PASSWORD=xxx \
   -e POSTGRES_DB=spring-ai-demo-db \
-  -d postgres:17-alpine
+  -d pgvector/pgvector:pg17
