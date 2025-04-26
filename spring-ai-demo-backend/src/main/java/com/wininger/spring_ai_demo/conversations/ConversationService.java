@@ -1,7 +1,7 @@
 package com.wininger.spring_ai_demo.conversations;
 
-import com.wininger.spring_ai_demo.api.ChatRequest;
-import com.wininger.spring_ai_demo.api.ChatResponse;
+import com.wininger.spring_ai_demo.api.chat.ChatRequest;
+import com.wininger.spring_ai_demo.api.chat.ChatResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -57,8 +57,8 @@ public class ConversationService {
 
         log.info("processing /api/v1/chat at {}", startTime);
 
-        final ChatClientRequestSpec prompt = chatClient 
-            .prompt() 
+        final ChatClientRequestSpec prompt = chatClient
+            .prompt()
             .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId));
 
         prompt.user(chatRequest.userPrompt());
