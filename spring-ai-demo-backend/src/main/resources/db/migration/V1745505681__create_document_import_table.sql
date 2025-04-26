@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS document_import_chunk(
   source_name VARCHAR(500) NOT NULL,
   content TEXT NOT NULL,
   metadata JSONB,
-  status VARCHAR(50) NOT NULL ,
+  status VARCHAR(50) NOT NULL,
   created_at TIMESTAMP NOT NULL,
   updated_at TIMESTAMP NOT NULL
 )

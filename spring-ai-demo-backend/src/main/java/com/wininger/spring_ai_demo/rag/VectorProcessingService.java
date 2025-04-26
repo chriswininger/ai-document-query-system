@@ -1,0 +1,62 @@
+package com.wininger.spring_ai_demo.rag;
+
+import com.wininger.spring_ai_demo.rag.db.DocumentImportService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.transformer.splitter.TokenTextSplitter;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Map;
+
+@Service
+public class VectorProcessingService {
+  private static final Logger logger = LoggerFactory.getLogger(VectorProcessingService.class);
+  private final DocumentImportService documentImportService;
+  private final VectorStore vectoreStore;
+
+  public VectorProcessingService(
+      final DocumentImportService documentImportService,
+      final VectorStore vectorStore
+  ) {
+    this.documentImportService = documentImportService;
+    this.vectoreStore = vectorStore;
+  }
+
+  // super helpful https://docs.spring.io/spring-ai/reference/api/vectordbs/pgvector.html
+  public int storeChunks(final int documentId) {
+    logger.info("begin processing document id: '{}'", documentId);
+    final var chunks = documentImportService.getAllDocumentChunksByDocId(documentId);
+
+    final List<Document> docsToEmbedAndStore = chunks.stream().map(chunk -> {
+      if (chunk.content().split("\\s+").length > 1000) {
+        logger.warn("Exceeding max safe doc size, performing further splits");
+        // figure out a way to split up into smaller chunks here
+        var splitter = new TokenTextSplitter();
+
+        final List<Document> smallerChunks =
+            splitter.apply(List.of(new Document(chunk.content(), Map.of("source_name", chunk.sourceName()))));
+
+        logger.debug("chunks reallocation into: {} chunks", smallerChunks.size());
+        return smallerChunks;
+      } else {
+        // normal case leave it alone
+        return List.of(
+            new Document(chunk.content(), Map.of(
+                "source_name", chunk.sourceName(),
+                "source_id", documentId,
+                "chunk_id", chunk.id()))
+        );
+      }
+    }).flatMap(List::stream)
+      .toList();
+
+    logger.debug("storing {} chunks", docsToEmbedAndStore.size());
+    vectoreStore.add(docsToEmbedAndStore);
+
+    logger.info("done processing document id: '{}'", documentId);
+    return docsToEmbedAndStore.size();
+  }
+}

@@ -1,8 +1,6 @@
-package com.wininger.spring_ai_demo.rag;
+package com.wininger.spring_ai_demo.rag.db;
 
 import com.wininger.spring_ai_demo.jooq.generated.tables.DocumentImport;
-import com.wininger.spring_ai_demo.jooq.generated.tables.DocumentImportChunk;
-import com.wininger.spring_ai_demo.jooq.generated.tables.records.DocumentImportRecord;
 import com.wininger.spring_ai_demo.rag.dto.DtoDocumentImport;
 import com.wininger.spring_ai_demo.rag.dto.DtoDocumentImportChunk;
 import org.jooq.DSLContext;
