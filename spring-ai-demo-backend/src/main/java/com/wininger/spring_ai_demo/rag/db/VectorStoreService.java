@@ -29,4 +29,10 @@ public class VectorStoreService {
            null
         ));
   }
+
+  public void deleteAllVectorsByDocumentId(final int docId) {
+    dsl.deleteFrom(VECTOR_STORE)
+        .where(cast(jsonGetAttributeAsText(VECTOR_STORE.METADATA, "source_id"), Integer.class).eq(docId))
+        .execute();
+  }
 }

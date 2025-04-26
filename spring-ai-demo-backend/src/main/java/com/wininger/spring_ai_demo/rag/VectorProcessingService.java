@@ -1,6 +1,7 @@
 package com.wininger.spring_ai_demo.rag;
 
 import com.wininger.spring_ai_demo.rag.db.DocumentImportService;
+import com.wininger.spring_ai_demo.rag.db.VectorStoreService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
@@ -15,19 +16,29 @@ import java.util.Map;
 public class VectorProcessingService {
   private static final Logger logger = LoggerFactory.getLogger(VectorProcessingService.class);
   private final DocumentImportService documentImportService;
-  private final VectorStore vectoreStore;
+  private final VectorStore vectorStore;
+
+  // it might be that this table should just be managed and accessed through the framework
+  // vector store, but for now we also have this for crud operations
+  private final VectorStoreService vectorStoreService;
 
   public VectorProcessingService(
       final DocumentImportService documentImportService,
-      final VectorStore vectorStore
+      final VectorStore vectorStore,
+      final VectorStoreService vectorStoreService
   ) {
     this.documentImportService = documentImportService;
-    this.vectoreStore = vectorStore;
+    this.vectorStore = vectorStore;
+    this.vectorStoreService = vectorStoreService;
   }
 
   // super helpful https://docs.spring.io/spring-ai/reference/api/vectordbs/pgvector.html
   public int storeChunks(final int documentId) {
     logger.info("begin processing document id: '{}'", documentId);
+
+    // drop existing rows in case this is re-processing
+    vectorStoreService.deleteAllVectorsByDocumentId(documentId);
+
     final var chunks = documentImportService.getAllDocumentChunksByDocId(documentId);
 
     final List<Document> docsToEmbedAndStore = chunks.stream().map(chunk -> {
@@ -54,7 +65,7 @@ public class VectorProcessingService {
       .toList();
 
     logger.debug("storing {} chunks", docsToEmbedAndStore.size());
-    vectoreStore.add(docsToEmbedAndStore);
+    vectorStore.add(docsToEmbedAndStore);
 
     logger.info("done processing document id: '{}'", documentId);
     return docsToEmbedAndStore.size();
