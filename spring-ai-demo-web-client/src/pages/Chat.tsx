@@ -1,6 +1,5 @@
 import {useRef, useState} from 'react'
 import './Chat.css'
-import '../App.css'
 import {
   doPostRequest, getErrorRequestState,
   getInitialRequestState,
