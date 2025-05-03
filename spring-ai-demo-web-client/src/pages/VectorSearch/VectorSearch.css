@@ -1,17 +1,17 @@
 .vector-search-page {
     display: grid;
-    grid-template-columns: 300px auto;
+    grid-template-columns: max-content auto;
 }
 
 .search-controls {
     display: flex;
     justify-content: space-between;
+    height: 4rem;
 }
 
 .vector-search-input {
     padding: 1rem;
     flex-grow: 1;
-    height: 1rem;
 
     /* puts this in line with the document selection */
     margin-top: 11px;
@@ -19,4 +19,17 @@
 
 .search-button {
     margin-left: 1rem;
+    margin-top: 16px;
+}
+
+.search-results {
+    height: 500px;
+    overflow: scroll;
+    margin-top: 1rem;
+}
+
+.search-results-item {
+    margin-bottom: 1rem;
+    border: 1px solid #4146b7;
+    padding: 1rem;
 }

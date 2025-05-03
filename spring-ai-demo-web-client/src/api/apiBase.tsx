@@ -4,7 +4,7 @@ export const documentsApi = createApi({
   reducerPath: 'documentsApi',
   baseQuery: fetchBaseQuery({ baseUrl: "/api/v1/rag/document" }),
   endpoints: (build) =>({
-    getAllImportedDocuments: build.query<DocumentImport, void>({
+    getAllImportedDocuments: build.query<DocumentImport [], void>({
       query: () => '/imported/all'
     })
   })
@@ -20,3 +20,6 @@ export interface DocumentImport {
 }
 
 export const { useGetAllImportedDocumentsQuery } = documentsApi;
+
+
+

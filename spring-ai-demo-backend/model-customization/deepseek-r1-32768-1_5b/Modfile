@@ -1,0 +1,4 @@
+# we can possibly go as high as 131072, but that might knock it out of vram
+# run: ollama create deepseek-r1-32768:1.5b -f ./Modfile
+FROM deepseek-r1:1.5b
+PARAMETER num_ctx 32768

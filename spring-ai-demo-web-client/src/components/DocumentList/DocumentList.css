@@ -2,4 +2,13 @@
     border-color: #4e55dc;
     margin-right: 1rem;
     margin-left: 0;
+    width: 300px;
+    min-height: 500px;
+    overflow: clip;
+}
+
+.document-list-item {
+    width: 100%;
+    max-width: 300px;
+    white-space: nowrap;
 }
