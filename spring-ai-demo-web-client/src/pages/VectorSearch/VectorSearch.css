@@ -1,0 +1,22 @@
+.vector-search-page {
+    display: grid;
+    grid-template-columns: 300px auto;
+}
+
+.search-controls {
+    display: flex;
+    justify-content: space-between;
+}
+
+.vector-search-input {
+    padding: 1rem;
+    flex-grow: 1;
+    height: 1rem;
+
+    /* puts this in line with the document selection */
+    margin-top: 11px;
+}
+
+.search-button {
+    margin-left: 1rem;
+}

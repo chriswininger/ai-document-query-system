@@ -1,0 +1,27 @@
+ul.top-nav {
+    padding-left: 0;
+    list-style: none;
+    margin-top: 0;
+    margin-bottom: 1em;
+    display: flex;
+}
+
+ul.top-nav > li {
+    position: relative;
+    display: block;
+    margin: 1rem;
+}
+
+ul.top-nav li:first-child {
+    margin-left: 0;
+}
+
+ul.top-nav a {
+    color: #535bf2;
+}
+
+ul.top-nav a.active {
+    color: white;
+    font-weight: bold;
+    border-bottom: 2px solid white;
+}
