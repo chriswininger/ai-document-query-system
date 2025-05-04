@@ -1,7 +1,5 @@
 package com.wininger.spring_ai_demo.api.rag;
 
-import org.jooq.JSON;
+import java.util.Map;
 
-import java.util.List;
-
-public record VectorSearchResult(String text, String metadata) {}
+public record VectorSearchResult(String text, Map<String, Object> metadata, Double score) {}

@@ -40,7 +40,7 @@ public class VectorSearchService {
 
     return vectorStore.similaritySearch(searchRequest)
         .stream()
-        .map(r -> new VectorSearchResult(r.getText(), ""))
+        .map(r -> new VectorSearchResult(r.getText(), r.getMetadata(), r.getScore()))
         .toList();
   }
 }

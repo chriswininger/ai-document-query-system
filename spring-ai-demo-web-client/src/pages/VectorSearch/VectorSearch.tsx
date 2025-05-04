@@ -1,25 +1,19 @@
 import './VectorSearch.css'
-import {useState} from "react";
 import DocumentList from "../../components/DocumentList/DocumentList.tsx";
 import {usePerformSearchMutation, VectorSearchResult} from "../../api/vectorApi.tsx";
 import {useDispatch, useSelector} from "react-redux";
 import {AppDispatch, RootState} from "../../store/store.tsx";
-import {documentSelected, documentUnSelected, queryUpdated} from "./vectorSearchPageSlice.tsx";
+import {documentSelected, documentUnSelected, numResultsUpdated, queryUpdated} from "./vectorSearchPageSlice.tsx";
 import {DocumentImport} from "../../api/apiBase.tsx";
 
 export default function VectorSearch() {
   const dispatch = useDispatch<AppDispatch>();
 
-  const [searchValue, setSearchValue] = useState("")
   const query = useQuery();
   const numResults = useNumResults();
   const selectedDocuments = useSelectedDocuments();
 
   const [performSearch, { data, isLoading, error }] = usePerformSearchMutation();
-
-  console.log('!!! query: ' + query)
-  console.log('!!! numResults: ' + numResults)
-  console.log('!!! selectedDocuments: ' + selectedDocuments)
 
   return <main className="vector-search-page">
     <DocumentList selectedDocuments={selectedDocuments} onDocumentSelected={onDocumentSelected} />
@@ -29,8 +23,15 @@ export default function VectorSearch() {
         <input
           className="post-input vector-search-input"
           placeholder="Search"
-          value={searchValue}
-          onChange={(e) => updateSearchValue(e.target.value)}
+          value={query}
+          onChange={(e) => dispatch(queryUpdated(e.target.value))}
+        />
+
+        <input
+          className="post-input vector-search-num-results-input"
+          placeholder="number of results"
+          value={numResults}
+          onChange={(e) => dispatch(numResultsUpdated(parseInt(e.target.value)))}
         />
 
         <button className="search-button" onClick={onSearchClicked}>Go</button>
@@ -49,12 +50,7 @@ export default function VectorSearch() {
 
   function onSearchClicked() {
     const documentIds = selectedDocuments.map(d => d.id)
-    performSearch({ query: searchValue, numMatches: 10, documentSourceIds: documentIds })
-  }
-
-  function updateSearchValue(newValue: string) {
-    setSearchValue(newValue);
-    dispatch(queryUpdated(newValue));
+    performSearch({ query, numMatches: numResults, documentSourceIds: documentIds })
   }
 
   function onDocumentSelected(document: DocumentImport, newValue: boolean) {
@@ -69,8 +65,20 @@ export default function VectorSearch() {
 function SearchResultsItem({ searchResult } : { searchResult: VectorSearchResult}) {
   return  (
     <div className="search-results-item">
-      {searchResult.text}
+      <p>
+        {searchResult.text}
+      </p>
+
+      <code>
+        {JSON.stringify(searchResult.metadata, null, 4)}
+      </code>
+
+      <div className="search-result-score-area">
+        <label>Score: </label><span title="search-result-score">{searchResult.score}</span>
+      </div>
     </div>
+
+
   )
 }
 

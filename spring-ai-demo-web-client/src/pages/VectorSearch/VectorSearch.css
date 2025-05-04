@@ -15,6 +15,13 @@
 
     /* puts this in line with the document selection */
     margin-top: 11px;
+
+    margin-right: 1rem;
+}
+
+.vector-search-num-results-input {
+    padding: 1rem;
+    margin-top: 11px;
 }
 
 .search-button {
@@ -23,8 +30,6 @@
 }
 
 .search-results {
-    height: 500px;
-    overflow: scroll;
     margin-top: 1rem;
 }
 
@@ -32,4 +37,9 @@
     margin-bottom: 1rem;
     border: 1px solid #4146b7;
     padding: 1rem;
+}
+
+.search-result-score-area {
+    margin-top: 1rem;
+    font-style: italic;
 }

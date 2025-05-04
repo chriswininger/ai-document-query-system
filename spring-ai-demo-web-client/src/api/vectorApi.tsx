@@ -22,7 +22,8 @@ export interface VectorSearchRequest {
 
 export interface VectorSearchResult {
   text: string,
-  metadata: string,
+  metadata: Map<string, unknown>,
+  score: null
 }
 
  export const { usePerformSearchMutation } = vectorApi;
