@@ -2,19 +2,20 @@ package com.wininger.spring_ai_demo.conversations;
 
 import com.wininger.spring_ai_demo.api.chat.ChatRequest;
 import com.wininger.spring_ai_demo.api.chat.ChatResponse;
+import com.wininger.spring_ai_demo.api.rag.VectorSearchResult;
+import com.wininger.spring_ai_demo.api.rag.VectorSearchService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.ChatClient.ChatClientRequestSpec;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.InMemoryChatMemory;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -32,12 +33,11 @@ public class ConversationService {
 
     private final ChatClient chatClient;
 
-    private final VectorStore vectorStore;
-
+    private final VectorSearchService vectorSearchService;
 
     public ConversationService(
         final ChatClient.Builder chatClientBuilder,
-        final VectorStore vectorStore
+        final VectorSearchService vectorSearchService
     ) {
         this.chatClient = chatClientBuilder
             .defaultAdvisors(new MessageChatMemoryAdvisor(new InMemoryChatMemory()))
@@ -48,7 +48,7 @@ public class ConversationService {
                 """)
             .build();
 
-        this.vectorStore = vectorStore;
+        this.vectorSearchService = vectorSearchService;
     }
 
     public final Integer getNextConversationId() {
@@ -69,12 +69,33 @@ public class ConversationService {
             .prompt()
             .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId));
 
-        prompt.user(chatRequest.userPrompt());
-
         if (nonNull(chatRequest.systemPrompt())) {
           prompt.system(chatRequest.systemPrompt());
         }
 
+        final List<VectorSearchResult> vectorSearchResults;
+        if (nonNull(chatRequest.documentSourceIds()) && !chatRequest.documentSourceIds().isEmpty()) {
+            vectorSearchResults = vectorSearchService.performSearch(
+                chatRequest.userPrompt(), 30, chatRequest.documentSourceIds());
+
+            final var docs = vectorSearchResults.stream()
+                .map(VectorSearchResult::text)
+                .collect(Collectors.joining("\n"));
+            final var userPrompt = """
+        Answer the question that comes at the end of this dialog, based only on the information between the Info tags:
+        
+        <Info>
+        %s
+        </Info>
+        
+        <Question>
+        %s
+        </Question>
+        """.formatted(docs, chatRequest.userPrompt());
+        } else {
+            prompt.user(chatRequest.userPrompt());
+            vectorSearchResults = List.of();
+        }
 
         final String modelResponse = prompt
             .call()
@@ -86,6 +107,7 @@ public class ConversationService {
         return new ChatResponse(
             chatRequest.userPrompt(),
             cleanResponse(modelResponse),
+            vectorSearchResults,
             llmModel,
             conversationId,
             startTime,
@@ -107,18 +129,10 @@ public class ConversationService {
             .prompt()
             .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId));
 
-        //final var query = queryForTheVectorDb(chatRequest.userPrompt());
+        final var vectorSearchResults = vectorSearchService.performSearch(chatRequest.userPrompt(), 30, List.of(6));
 
-        //log.info("Query to perform similarity search: '{}'", query);
-
-        final var searchRequest = SearchRequest.builder()
-            .topK(30)
-            .filterExpression("source_id == 6") // 6 is source_id for Master_AND_Commander
-            .query(chatRequest.userPrompt())
-            .build();
-
-        final var captainsLogs = vectorStore.similaritySearch(searchRequest).stream()
-            .map(Document::getText)
+        final var captainsLogs = vectorSearchResults.stream()
+            .map(VectorSearchResult::text)
             .collect(Collectors.joining("\n"));
 
         log.info("captains logs, found: {} entries", captainsLogs.length());
@@ -166,6 +180,7 @@ public class ConversationService {
         return new ChatResponse(
             chatRequest.userPrompt(),
             cleanResponse(modelResponse),
+            vectorSearchResults,
             llmModel,
             conversationId,
             startTime,

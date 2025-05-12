@@ -1,0 +1,63 @@
+.chat-page {
+    display: grid;
+    grid-template-columns: max-content auto;
+}
+
+.card {
+    padding: 2em;
+}
+
+.read-the-docs {
+    color: #888;
+}
+
+.chat-window {
+    width: 100%;
+    height: 500px;
+}
+
+.conversation-area-test {
+    height: 500px;
+    border: 1px solid rgba(255, 255, 255, 0.87);
+    color: rgba(255, 255, 255, 0.87);
+
+    overflow-y: scroll;
+}
+
+.exchange-value {
+    background-color: #2b2a33;
+    padding: 1rem;
+    white-space: pre-wrap;
+    margin-right: 1rem;
+}
+
+.exchange-user-label {
+    font-weight: bold;
+}
+
+.post-area {
+    width: 100%;
+    max-width: 1280px;
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 1rem;
+}
+
+.post-input.prompt {
+    width: 800px;
+    height: 6em;
+    margin-right: 1rem;
+
+    flex-grow: 1;
+}
+
+.send-prompt-btn {
+    align-self: center;
+}
+
+.system-prompt-input {
+    width: 100%;
+    margin-bottom: 1rem;
+    padding-right: 0; /* if there is any padding this does not right align with other elements */
+    padding-left: 0;
+}

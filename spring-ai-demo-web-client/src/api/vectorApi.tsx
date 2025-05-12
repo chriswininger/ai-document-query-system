@@ -26,4 +26,5 @@ export interface VectorSearchResult {
   score: null
 }
 
- export const { usePerformSearchMutation } = vectorApi;
+export const { usePerformSearchMutation } = vectorApi;
+export type PerformSearchMutationResponse = ReturnType<typeof vectorApi.usePerformSearchMutation>[1];
