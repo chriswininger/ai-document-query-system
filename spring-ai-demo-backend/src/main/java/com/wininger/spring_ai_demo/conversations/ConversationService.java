@@ -73,29 +73,8 @@ public class ConversationService {
           prompt.system(chatRequest.systemPrompt());
         }
 
-        final List<VectorSearchResult> vectorSearchResults;
-        if (nonNull(chatRequest.documentSourceIds()) && !chatRequest.documentSourceIds().isEmpty()) {
-            vectorSearchResults = vectorSearchService.performSearch(
-                chatRequest.userPrompt(), 30, chatRequest.documentSourceIds());
-
-            final var docs = vectorSearchResults.stream()
-                .map(VectorSearchResult::text)
-                .collect(Collectors.joining("\n"));
-            final var userPrompt = """
-        Answer the question that comes at the end of this dialog, based only on the information between the Info tags:
-        
-        <Info>
-        %s
-        </Info>
-        
-        <Question>
-        %s
-        </Question>
-        """.formatted(docs, chatRequest.userPrompt());
-        } else {
-            prompt.user(chatRequest.userPrompt());
-            vectorSearchResults = List.of();
-        }
+        final var userPromptInfo = getUserPrompt(chatRequest);
+        prompt.user(userPromptInfo.userPrompt());
 
         final String modelResponse = prompt
             .call()
@@ -107,7 +86,7 @@ public class ConversationService {
         return new ChatResponse(
             chatRequest.userPrompt(),
             cleanResponse(modelResponse),
-            vectorSearchResults,
+            userPromptInfo.searchResults(),
             llmModel,
             conversationId,
             startTime,
@@ -240,4 +219,33 @@ public class ConversationService {
 
         return splitThinking(prompt.call().content()).response();
     }
+
+    private PromptWithSearchResults getUserPrompt(final ChatRequest chatRequest) {
+        if (nonNull(chatRequest.documentSourceIds()) && !chatRequest.documentSourceIds().isEmpty()) {
+            final var vectorSearchResults = vectorSearchService.performSearch(
+                chatRequest.userPrompt(), 30, chatRequest.documentSourceIds());
+
+            final var docs = vectorSearchResults.stream()
+                .map(VectorSearchResult::text)
+                .collect(Collectors.joining("\n"));
+
+            final var userPrompt = """
+        Answer the question that comes at the end of this dialog, based only on the information between the Info tags:
+        
+        <Info>
+        %s
+        </Info>
+        
+        <Question>
+        %s
+        </Question>
+        """.formatted(docs, chatRequest.userPrompt());
+
+            return new PromptWithSearchResults(userPrompt, vectorSearchResults);
+        }
+
+        return new PromptWithSearchResults(chatRequest.userPrompt(), List.of());
+    }
 }
+
+record PromptWithSearchResults(String userPrompt, List<VectorSearchResult> searchResults) {}

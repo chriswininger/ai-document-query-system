@@ -5,7 +5,9 @@ import {AppDispatch, RootState} from "../../store/store.tsx";
 import {useRef} from "react";
 import {
   conversationExchanged,
-  conversationIdUpdated, documentSelected, documentUnSelected,
+  conversationIdUpdated,
+  documentSelected,
+  documentUnSelected,
   systemPromptUpdated,
   userPromptUpdated
 } from "./chatPageSlice.tsx";
@@ -76,11 +78,20 @@ export default function ChatPage() {
   )
 
   async function sendPromptClicked() {
-    const result = await performPrompt({ userPrompt, systemPrompt, conversationId })
+    const result = await performPrompt({
+      userPrompt,
+      systemPrompt,
+      conversationId,
+      documentSourceIds: selectedDocuments.map(d => d.id)
+    })
 
     if (result.data) {
       dispatch(conversationExchanged(result.data));
       dispatch(conversationIdUpdated(result.data.conversationId));
+
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({behavior: 'smooth'});
+      }, 0);
     }
   }
 

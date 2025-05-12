@@ -10,9 +10,11 @@ export default function PromptResult({ isLoading, isUninitialized, isError, erro
     }
 
     if (isError) {
-        return <p className="error" role="alert">Error processing request: {error}</p>
+        console.log('!!! here error')
+        return <p className="error" role="alert">Error processing request: {error?.status} -- {JSON.stringify(error?.data)}</p>
     }
 
+    console.log('!!! here data: ', data)
     if (data) {
         const { requestTimeStartTime, requestEndTime } = data
 

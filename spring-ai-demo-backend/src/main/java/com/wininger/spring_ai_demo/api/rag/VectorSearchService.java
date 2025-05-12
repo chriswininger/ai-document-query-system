@@ -14,15 +14,6 @@ public class VectorSearchService {
   private final Logger logger = LoggerFactory.getLogger(VectorSearchService.class);
 
   private final VectorStore vectorStore;
-public record ChatResponse(
-        String prompt,
-        String response,
-        List<VectorSearchResult> vectorSearchResults,
-        String model,
-        int conversationId,
-        Date requestTimeStartTime,
-        Date requestEndTime
-) {}
 
   public VectorSearchService(final VectorStore vectorStore) {
     this.vectorStore = vectorStore;
