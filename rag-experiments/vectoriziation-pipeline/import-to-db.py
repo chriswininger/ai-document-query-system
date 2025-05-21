@@ -24,11 +24,11 @@ def main():
                 model_name=model_name,
                 encode_kwargs=encode_kwargs
             ),
-    # https://github.com/langchain-ai/langchain/discussions/18802#discussioncomment-9571544
-    # This pushes it towards smaller chunks because our doc store does no like some of the large
-    # chunks this was producing
-    breakpoint_threshold_type="percentile",
-    breakpoint_threshold_amount=80
+            # https://github.com/langchain-ai/langchain/discussions/18802#discussioncomment-9571544
+            # This pushes it towards smaller chunks because our doc store does no like some of the large
+            # chunks this was producing
+            breakpoint_threshold_type="percentile",
+            breakpoint_threshold_amount=95
     )
 
     start = time.perf_counter()
@@ -41,6 +41,7 @@ def main():
     print(f"Number of Chunks: {len(chunks)}")
 
     persist_chunks_to_db(file_name, chunks, input_text)
+
 
 def read_file(filename):
     try:
