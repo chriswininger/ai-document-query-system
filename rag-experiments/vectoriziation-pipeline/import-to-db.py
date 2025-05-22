@@ -7,6 +7,8 @@ import psycopg2
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
+from langchain_text_splitters import CharacterTextSplitter
+
 def main():
     if (len(sys.argv) < 2):
         print('file path is a required argument')
@@ -19,17 +21,24 @@ def main():
     # === create our document chunker ===
     model_name = "BAAI/bge-large-en-v1.5"
     encode_kwargs = {'normalize_embeddings': True}
-    text_splitter = SemanticChunker(
-            HuggingFaceEmbeddings(
-                model_name=model_name,
-                encode_kwargs=encode_kwargs
-            ),
-            # https://github.com/langchain-ai/langchain/discussions/18802#discussioncomment-9571544
-            # This pushes it towards smaller chunks because our doc store does no like some of the large
-            # chunks this was producing
-            breakpoint_threshold_type="percentile",
-            breakpoint_threshold_amount=95
+    
+    text_splitter = CharacterTextSplitter.from_tiktoken_encoder(
+        encoding_name="cl100k_base", chunk_size=1000, chunk_overlap=100
     )
+    
+    
+    #texts = text_splitter.split_text(document)
+    #    text_splitter = SemanticChunker(
+    #        HuggingFaceEmbeddings(
+    #            model_name=model_name,
+    #            encode_kwargs=encode_kwargs
+    #        ),
+    #        # https://github.com/langchain-ai/langchain/discussions/18802#discussioncomment-9571544
+    #        # This pushes it towards smaller chunks because our doc store does no like some of the large
+    #        # chunks this was producing
+    #        breakpoint_threshold_type="percentile",
+    #        breakpoint_threshold_amount=95
+    #)
 
     start = time.perf_counter()
 
