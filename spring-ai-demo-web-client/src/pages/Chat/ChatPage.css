@@ -16,12 +16,18 @@
     height: 500px;
 }
 
-.conversation-area-test {
-    height: 500px;
-    border: 1px solid rgba(255, 255, 255, 0.87);
-    color: rgba(255, 255, 255, 0.87);
+.conversation-exchange-area{
+    display: flex;
+    flex-direction: column;
+}
 
+.conversation-area {
+    min-height: 500px;
+    flex-grow: 0.8;
     overflow-y: scroll;
+
+    border: 1px solid  #4e55dc;
+    color: rgba(255, 255, 255, 0.87);
 }
 
 .exchange-value {
@@ -60,4 +66,33 @@
     margin-bottom: 1rem;
     padding-right: 0; /* if there is any padding this does not right align with other elements */
     padding-left: 0;
+}
+
+.exchange-more {
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    border: 1px solid white;
+    margin-left: auto;
+    margin-right: 1rem;
+}
+
+/* #9400ff */
+.exchange-see-more {
+    margin: 1rem;
+    text-align: right;
+}
+
+.exchange-more .search-results-item {
+    margin: 1rem;
+}
+
+.conversation-exchange-area--conversation-instance-info {
+    margin-top: 1rem;
+}
+
+.conversation-exchange-area--conversation-instance-info-id {
+    font-style: italic;
+    margin-right: 1rem;
 }

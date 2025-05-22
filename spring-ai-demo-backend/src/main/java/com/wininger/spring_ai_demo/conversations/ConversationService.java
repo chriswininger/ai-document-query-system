@@ -10,7 +10,8 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.ChatClient.ChatClientRequestSpec;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.InMemoryChatMemory;
-import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.tokenizer.TokenCountEstimator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -35,10 +36,13 @@ public class ConversationService {
 
     private final VectorSearchService vectorSearchService;
 
+    private final TokenCountEstimator tokenCountEstimator;
+
     public ConversationService(
         final ChatClient.Builder chatClientBuilder,
-        final VectorSearchService vectorSearchService
-    ) {
+        final VectorSearchService vectorSearchService,
+        final TokenCountEstimator tokenCountEstimator
+        ) {
         this.chatClient = chatClientBuilder
             .defaultAdvisors(new MessageChatMemoryAdvisor(new InMemoryChatMemory()))
             .defaultSystem("""
@@ -49,6 +53,7 @@ public class ConversationService {
             .build();
 
         this.vectorSearchService = vectorSearchService;
+        this.tokenCountEstimator = tokenCountEstimator;
     }
 
     public final Integer getNextConversationId() {
@@ -74,18 +79,26 @@ public class ConversationService {
         }
 
         final var userPromptInfo = getUserPrompt(chatRequest);
-        prompt.user(userPromptInfo.userPrompt());
+        final var promptWithRag = userPromptInfo.userPrompt();
+        log.info("Constructed prompt is '{}' characters", promptWithRag.length());
+        log.info("Constructed prompt is around '{}' tokens", tokenCountEstimator.estimate(promptWithRag));
+        prompt.user(promptWithRag);
 
-        final String modelResponse = prompt
-            .call()
+        final var modelResponse = prompt
+            .call();
+
+        final String content = modelResponse
             .content();
 
         var endTime = new Date();
         log.info("finished processing /api/v1/chat {} at", endTime);
 
+        final var thinkingAndResponding = cleanResponse(content);
+
         return new ChatResponse(
             chatRequest.userPrompt(),
-            cleanResponse(modelResponse),
+            thinkingAndResponding.response(),
+            thinkingAndResponding.thinking(),
             userPromptInfo.searchResults(),
             llmModel,
             conversationId,
@@ -94,89 +107,16 @@ public class ConversationService {
         );
     }
 
-    public ChatResponse performConversationExchangeWithJack(
-        final ChatRequest chatRequest
-    ) {
-        final var startTime = new Date();
-        final int conversationId = nonNull(chatRequest.conversationId())
-            ? chatRequest.conversationId()
-            : getNextConversationId();
-
-        log.info("processing /api/v1/chat/with-jack at {}", startTime);
-
-        final ChatClientRequestSpec prompt = chatClient
-            .prompt()
-            .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId));
-
-        final var vectorSearchResults = vectorSearchService.performSearch(chatRequest.userPrompt(), 30, List.of(6));
-
-        final var captainsLogs = vectorSearchResults.stream()
-            .map(VectorSearchResult::text)
-            .collect(Collectors.joining("\n"));
-
-        log.info("captains logs, found: {} entries", captainsLogs.length());
-
-        final var systemPrompt = """
-        You are a helpful member of Captain Jack Aubrey's crew aboard the Sloop named HMS Sophie.
-        
-        You will respond the dialog of the time period. Here are some examples:
-        
-        ```
-        “But you know as well as I, patriotism is a word; and one that generally comes to mean either my country, right or wrong, which is infamous, or my country is always right, which is imbecile.”
-    
-        “My dear creature, I have done with all debate. But you know as well as I, patriotism is a word; and one that generally comes to mean either MY COUNTRY, RIGHT OR WRONG, which is infamous, or MY COUNTRY IS ALWAYS RIGHT, which is imbecile.”
-      
-        “Patriotism is a word; and one that generally comes to mean either my country, right or wrong, which is infamous, or my country is always right, which is imbecile.”    
-        ```
-        """.formatted(captainsLogs);
-
-        final var userPrompt = """
-        Answer the question that comes at the end of this dialog, based only on the information between the Info tags:
-        
-        <Info>
-        %s
-        </Info>
-        
-        <Question>
-        %s
-        </Question>
-        """.formatted(captainsLogs, chatRequest.userPrompt());
-
-        log.info("system prompt: \n======\n{}\n=======\n", systemPrompt);
-        log.info("user prompt: \n======\n{}\n=======\n", userPrompt);
-
-        prompt.system(systemPrompt);
-        prompt.user(userPrompt);
-
-
-        final String modelResponse = prompt
-            .call()
-            .content();
-
-        var endTime = new Date();
-        log.info("finished processing /api/v1/chat/with-jack {} at", endTime);
-
-        return new ChatResponse(
-            chatRequest.userPrompt(),
-            cleanResponse(modelResponse),
-            vectorSearchResults,
-            llmModel,
-            conversationId,
-            startTime,
-            endTime
-        );
-    }
-
-    private String cleanResponse(final String chatResponse) {
+    private ThinkingAndResponding cleanResponse(final String chatResponse) {
         if (isNull(chatResponse)) {
-            return "";
+            return new ThinkingAndResponding("", "");
         }
 
         final var thinkingAndResponding = splitThinking(chatResponse);
 
         log.info(thinkingAndResponding.toString());
 
-        return thinkingAndResponding.response();
+        return thinkingAndResponding;
     }
 
     public ThinkingAndResponding splitThinking(final String chatResponse) {
@@ -200,32 +140,15 @@ public class ConversationService {
         }
     }
 
-    private String queryForTheVectorDb(final String originalPrompt) {
-        log.info("get vector db query for: '{}'", originalPrompt);
-        final ChatClientRequestSpec prompt = chatClient
-            .prompt()
-            .system("""
-            Your purpose is to provide good query strings to match related documents in a vector database. When prompted you will respond with a query string good for doing  similarity search
-            
-            For Example, you see:
-            
-            "Tell you what you can about Captain Jack Aubrey",
-            
-            you respond:
-            
-            "Jack Aubrey"
-            """)
-            .user(originalPrompt);
-
-        return splitThinking(prompt.call().content()).response();
-    }
-
     private PromptWithSearchResults getUserPrompt(final ChatRequest chatRequest) {
         if (nonNull(chatRequest.documentSourceIds()) && !chatRequest.documentSourceIds().isEmpty()) {
             final var vectorSearchResults = vectorSearchService.performSearch(
-                chatRequest.userPrompt(), 30, chatRequest.documentSourceIds());
+                chatRequest.userPrompt(), 20, chatRequest.documentSourceIds());
 
             final var docs = vectorSearchResults.stream()
+                .sorted((a, b) -> {
+                    return (int)a.metadata().get("chunk_id") - (int)b.metadata().get("chunk_id");
+                })
                 .map(VectorSearchResult::text)
                 .collect(Collectors.joining("\n"));
 

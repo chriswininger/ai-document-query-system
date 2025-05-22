@@ -16,11 +16,6 @@ public class ChatController {
         this.conversationService = conversationService;
     }
 
-    @PostMapping(path = "/with-jack", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ChatResponse chatWithJack(@RequestBody final ChatRequest chatRequest) {
-        return this.conversationService.performConversationExchangeWithJack(chatRequest);
-    }
-
     @PostMapping(path = "/generic", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ChatResponse chat(@RequestBody final ChatRequest chatRequest) {
         return this.conversationService.performConversationExchange(chatRequest);

@@ -1,10 +1,11 @@
 import './VectorSearch.css'
 import DocumentList from "../../components/DocumentList/DocumentList.tsx";
-import {usePerformSearchMutation, VectorSearchResult} from "../../api/vectorApi.tsx";
+import {usePerformSearchMutation } from "../../api/vectorApi.tsx";
 import {useDispatch, useSelector} from "react-redux";
 import {AppDispatch, RootState} from "../../store/store.tsx";
 import {documentSelected, documentUnSelected, numResultsUpdated, queryUpdated} from "./vectorSearchPageSlice.tsx";
 import {DocumentImport} from "../../api/apiBase.tsx";
+import SearchResultsItem from "../../components/SearchResultItem/SearchResultItem.tsx";
 
 export default function VectorSearch() {
   const dispatch = useDispatch<AppDispatch>();
@@ -62,25 +63,6 @@ export default function VectorSearch() {
   }
 }
 
-function SearchResultsItem({ searchResult } : { searchResult: VectorSearchResult}) {
-  return  (
-    <div className="search-results-item">
-      <p>
-        {searchResult.text}
-      </p>
-
-      <code>
-        {JSON.stringify(searchResult.metadata, null, 4)}
-      </code>
-
-      <div className="search-result-score-area">
-        <label>Score: </label><span title="search-result-score">{searchResult.score}</span>
-      </div>
-    </div>
-
-
-  )
-}
 
 const useQuery = () => useSelector((state: RootState) => state.vectorSearchPage.query);
 const useNumResults = () => useSelector((state: RootState) => state.vectorSearchPage.numResults);

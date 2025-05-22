@@ -4,6 +4,7 @@ import {useDispatch, useSelector} from "react-redux";
 import {AppDispatch, RootState} from "../../store/store.tsx";
 import {useRef} from "react";
 import {
+  conversationCleared,
   conversationExchanged,
   conversationIdUpdated,
   documentSelected,
@@ -43,7 +44,7 @@ export default function ChatPage() {
           onChange={(e) => dispatch(systemPromptUpdated(e.target.value))}
         />
 
-        <div className="conversation-area conversation-area-test">
+        <div className="conversation-area">
           { conversation
             .map(exchange => <ConversationExchange key={`${exchange.requestEndTime}`} exchange={exchange} />)
           }
@@ -73,6 +74,19 @@ export default function ChatPage() {
             <PromptResult {...result} />
           </div>
         </div>
+
+        {
+          conversationId !== undefined &&
+          (
+            <div className="conversation-exchange-area--conversation-instance-info">
+              <span className="conversation-exchange-area--conversation-instance-info-id">
+                Existing Conversation ID: {conversationId}
+              </span>
+
+              <button onClick={resetConversationClicked}>New Conversation</button>
+            </div>
+          )
+        }
       </div>
     </main>
   )
@@ -88,6 +102,7 @@ export default function ChatPage() {
     if (result.data) {
       dispatch(conversationExchanged(result.data));
       dispatch(conversationIdUpdated(result.data.conversationId));
+      dispatch(systemPromptUpdated(''));
 
       setTimeout(() => {
         bottomRef.current?.scrollIntoView({behavior: 'smooth'});
@@ -101,6 +116,10 @@ export default function ChatPage() {
     } else {
       dispatch(documentUnSelected(document));
     }
+  }
+
+  function resetConversationClicked() {
+    dispatch(conversationCleared());
   }
 }
 

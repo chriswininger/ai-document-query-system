@@ -18,6 +18,13 @@ const chatPageSlice = createSlice({
     conversationExchanged: (state, action) => {
       state.conversation = [...state.conversation, action.payload]
     },
+    conversationCleared: (state) => {
+      state.conversation = []
+      state.conversationId = undefined
+      state.userPrompt = ""
+      state.selectedDocuments = []
+      state.systemPrompt = getDefaultSystemPrompt();
+    },
     documentSelected: (state, action) => {
       state.selectedDocuments = [
         ...state.selectedDocuments,
@@ -53,7 +60,8 @@ export const {
   conversationIdUpdated,
   conversationExchanged,
   documentUnSelected,
-  documentSelected
+  documentSelected,
+  conversationCleared
 } = chatPageSlice.actions;
 
 export default chatPageSlice.reducer;

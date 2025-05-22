@@ -49,6 +49,9 @@ dependencies {
 	implementation("org.jooq:jooq-meta:3.19.3")
 	implementation("org.jooq:jooq-codegen:3.19.3")
 
+	// utils
+	implementation("org.javatuples:javatuples:1.2")
+
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

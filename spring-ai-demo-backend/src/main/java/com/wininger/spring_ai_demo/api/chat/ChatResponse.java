@@ -8,6 +8,7 @@ import java.util.List;
 public record ChatResponse(
     String prompt,
     String response,
+    String thinking,
     List<VectorSearchResult> vectorSearchResults,
     String model,
     int conversationId,

@@ -25,6 +25,7 @@ export interface ChatRequest {
 export interface ChatResponse {
   prompt: string;
   response: string;
+  thinking: string;
   vectorSearchResults: VectorSearchResult[];
   model: string;
   conversationId: number;

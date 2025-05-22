@@ -42,7 +42,8 @@ public class VectorProcessingService {
     final var chunks = documentImportService.getAllDocumentChunksByDocId(documentId);
 
     final List<Document> docsToEmbedAndStore = chunks.stream().map(chunk -> {
-      if (chunk.content().split("\\s+").length > 1000) {
+      // !!!! temp disable
+      if (chunk.content().split("\\s+").length > 990000) {
         logger.warn("Exceeding max safe doc size, performing further splits");
         // figure out a way to split up into smaller chunks here
         var splitter = new TokenTextSplitter();

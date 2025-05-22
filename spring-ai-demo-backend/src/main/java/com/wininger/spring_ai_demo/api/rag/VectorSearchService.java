@@ -40,6 +40,9 @@ public class VectorSearchService {
 
     return vectorStore.similaritySearch(searchRequest)
         .stream()
+        .sorted((a, b) -> {
+          return (int)a.getMetadata().get("chunk_id") - (int)b.getMetadata().get("chunk_id");
+        })
         .map(r -> new VectorSearchResult(r.getText(), r.getMetadata(), r.getScore()))
         .toList();
   }
