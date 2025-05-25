@@ -11,11 +11,28 @@ public class LoggingAdvisor implements CallAroundAdvisor, StreamAroundAdvisor {
 
   @Override
   public AdvisedResponse aroundCall(AdvisedRequest advisedRequest, CallAroundAdvisorChain chain) {
-    logger.info("Before: {}", advisedRequest);
+    logger.info("""
+            Request -- userText:
+            =========================
+            {}
+            ========================
+            """, advisedRequest.userText());
+    logger.info("""
+        Request -- messages:
+        ====================
+        {}
+        ====================
+        """, advisedRequest.messages());
+
 
     final var advisorResponse = chain.nextAroundCall(advisedRequest);
 
-    logger.info("AFTER: {}", advisorResponse);
+    logger.info("""
+        Response:
+        ================
+        {}
+        ================
+        """, advisorResponse.response());
 
     return advisorResponse;
   }
