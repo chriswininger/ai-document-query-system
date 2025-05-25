@@ -4,13 +4,13 @@ import com.wininger.spring_ai_demo.api.chat.ChatRequest;
 import com.wininger.spring_ai_demo.api.chat.ChatResponse;
 import com.wininger.spring_ai_demo.api.rag.VectorSearchResult;
 import com.wininger.spring_ai_demo.api.rag.VectorSearchService;
+import com.wininger.spring_ai_demo.logging.LoggingAdvisor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.ChatClient.ChatClientRequestSpec;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.InMemoryChatMemory;
-import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.tokenizer.TokenCountEstimator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -28,6 +28,9 @@ public class ConversationService {
     @Value("${spring.ai.ollama.chat.options.model}")
     private String llmModel;
 
+    @Value("${spring.ai.ollama.chat.options.num-ctx}")
+    private int contextWindow;
+
     private final Logger log = LoggerFactory.getLogger(ConversationService.class);
 
     private final AtomicInteger lastId = new AtomicInteger(0);
@@ -44,7 +47,10 @@ public class ConversationService {
         final TokenCountEstimator tokenCountEstimator
         ) {
         this.chatClient = chatClientBuilder
-            .defaultAdvisors(new MessageChatMemoryAdvisor(new InMemoryChatMemory()))
+            .defaultAdvisors(
+                new MessageChatMemoryAdvisor(new InMemoryChatMemory()),
+                new LoggingAdvisor()
+            )
             .defaultSystem("""
                 You are a helpful assistant. You are confident in your answers. Your answers are short and to the point.
                 If you do not know something you simply say so. Please do not explain your thinking, just answer the
@@ -78,10 +84,17 @@ public class ConversationService {
           prompt.system(chatRequest.systemPrompt());
         }
 
-        final var userPromptInfo = getUserPrompt(chatRequest);
+        final var userPromptInfo = getUserPromptWithRagAugmentation(chatRequest);
         final var promptWithRag = userPromptInfo.userPrompt();
+        final var estimatedTokens = tokenCountEstimator.estimate(promptWithRag);
+
         log.info("Constructed prompt is '{}' characters", promptWithRag.length());
-        log.info("Constructed prompt is around '{}' tokens", tokenCountEstimator.estimate(promptWithRag));
+        log.info("Constructed prompt is around '{}' tokens", estimatedTokens);
+
+        if (estimatedTokens >= contextWindow) {
+            log.warn("The number of tokens will exceed the context window of '{}'", contextWindow);
+        }
+
         prompt.user(promptWithRag);
 
         final var modelResponse = prompt
@@ -114,7 +127,7 @@ public class ConversationService {
 
         final var thinkingAndResponding = splitThinking(chatResponse);
 
-        log.info(thinkingAndResponding.toString());
+        // log.info(thinkingAndResponding.toString());
 
         return thinkingAndResponding;
     }
@@ -140,11 +153,18 @@ public class ConversationService {
         }
     }
 
-    private PromptWithSearchResults getUserPrompt(final ChatRequest chatRequest) {
-        if (nonNull(chatRequest.documentSourceIds()) && !chatRequest.documentSourceIds().isEmpty()) {
-            final var vectorSearchResults = vectorSearchService.performSearch(
-                chatRequest.userPrompt(), 20, chatRequest.documentSourceIds());
+    private PromptWithSearchResults getUserPromptWithRagAugmentation(final ChatRequest chatRequest) {
+        final int topK = chatRequest.numberOfRagDocumentsToInclude() != null
+            ? chatRequest.numberOfRagDocumentsToInclude()
+            : 5;
 
+        if (nonNull(chatRequest.documentSourceIds()) && !chatRequest.documentSourceIds().isEmpty()) {
+            log.info("Using Rag -- topK: {}", topK);
+
+            final var vectorSearchResults = vectorSearchService.performSearch(
+                chatRequest.userPrompt(), topK, chatRequest.documentSourceIds());
+
+            // sort the docs so that they come in the sequence they were included in the source material
             final var docs = vectorSearchResults.stream()
                 .sorted((a, b) -> {
                     return (int)a.metadata().get("chunk_id") - (int)b.metadata().get("chunk_id");

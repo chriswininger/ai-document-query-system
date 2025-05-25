@@ -10,4 +10,7 @@ public record ChatRequest(
     @JsonProperty(required = false)
     String systemPrompt,
     @JsonProperty(required = false)
-    List<Integer> documentSourceIds) {}
+    List<Integer> documentSourceIds,
+    @JsonProperty(required = false)
+    Integer numberOfRagDocumentsToInclude
+    ) {}
