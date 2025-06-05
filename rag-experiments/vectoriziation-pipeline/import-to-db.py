@@ -9,6 +9,7 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 
 from langchain_text_splitters import CharacterTextSplitter
 
+
 def main():
     if (len(sys.argv) < 2):
         print('file path is a required argument')
@@ -19,15 +20,13 @@ def main():
     input_text = read_file(file_path)
 
     # === create our document chunker ===
-    model_name = "BAAI/bge-large-en-v1.5"
-    encode_kwargs = {'normalize_embeddings': True}
-    
     text_splitter = CharacterTextSplitter.from_tiktoken_encoder(
-        encoding_name="cl100k_base", chunk_size=1000, chunk_overlap=100
+        encoding_name="cl100k_base", chunk_size=500, chunk_overlap=100
     )
-    
-    
-    #texts = text_splitter.split_text(document)
+
+    # model_name = "BAAI/bge-large-en-v1.5"
+    # encode_kwargs = {'normalize_embeddings': True}
+    # texts = text_splitter.split_text(document)
     #    text_splitter = SemanticChunker(
     #        HuggingFaceEmbeddings(
     #            model_name=model_name,
