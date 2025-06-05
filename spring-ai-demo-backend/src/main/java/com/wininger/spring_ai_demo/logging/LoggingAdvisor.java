@@ -12,12 +12,22 @@ public class LoggingAdvisor implements CallAroundAdvisor, StreamAroundAdvisor {
   @Override
   public AdvisedResponse aroundCall(AdvisedRequest advisedRequest, CallAroundAdvisorChain chain) {
     logger.info("""
+
             Request -- userText:
             =========================
             {}
             ========================
             """, advisedRequest.userText());
+
     logger.info("""
+       Resuest -- userParams:
+       =======================
+       {}
+       =======================
+    """, advisedRequest.userParams());
+
+    logger.info("""
+
         Request -- messages:
         ====================
         {}
@@ -54,6 +64,6 @@ public class LoggingAdvisor implements CallAroundAdvisor, StreamAroundAdvisor {
 
   @Override
   public int getOrder() {
-    return 0;
+    return 10001;
   }
 }

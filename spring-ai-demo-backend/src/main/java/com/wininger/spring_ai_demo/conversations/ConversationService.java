@@ -10,14 +10,19 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.ChatClient.ChatClientRequestSpec;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.InMemoryChatMemory;
+import org.springframework.ai.document.Document;
 import org.springframework.ai.tokenizer.TokenCountEstimator;
+import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.isNull;
@@ -37,12 +42,15 @@ public class ConversationService {
 
     private final ChatClient chatClient;
 
+    private final VectorStore vectorStore;
+
     private final VectorSearchService vectorSearchService;
 
     private final TokenCountEstimator tokenCountEstimator;
 
     public ConversationService(
         final ChatClient.Builder chatClientBuilder,
+        final VectorStore vectorStore,
         final VectorSearchService vectorSearchService,
         final TokenCountEstimator tokenCountEstimator
         ) {
@@ -60,6 +68,7 @@ public class ConversationService {
 
         this.vectorSearchService = vectorSearchService;
         this.tokenCountEstimator = tokenCountEstimator;
+        this.vectorStore = vectorStore;
     }
 
     public final Integer getNextConversationId() {
@@ -76,9 +85,17 @@ public class ConversationService {
 
         log.info("processing /api/v1/chat at {}", startTime);
 
+        final int topK = chatRequest.numberOfRagDocumentsToInclude() != null
+            ? chatRequest.numberOfRagDocumentsToInclude()
+            : 5;
+
+        final AtomicReference<List<Document>> ragDocsRef = new AtomicReference<>();
+
         final ChatClientRequestSpec prompt = chatClient
             .prompt()
-            .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId));
+            .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId))
+            .advisors(questionAnswerAdvisor(vectorStore, topK, chatRequest.documentSourceIds()))
+            .advisors(new RagDocumentCaptureAdvisor(ragDocsRef));
 
         if (nonNull(chatRequest.systemPrompt())) {
           prompt.system(chatRequest.systemPrompt());
@@ -103,6 +120,10 @@ public class ConversationService {
         final String content = modelResponse
             .content();
 
+        final List<Document> docs = nonNull(ragDocsRef.get()) ? ragDocsRef.get() : List.of();
+        System.out.println("!!! rag: " + (docs != null ? docs.size() : 0));
+
+
         var endTime = new Date();
         log.info("finished processing /api/v1/chat {} at", endTime);
 
@@ -112,7 +133,7 @@ public class ConversationService {
             chatRequest.userPrompt(),
             thinkingAndResponding.response(),
             thinkingAndResponding.thinking(),
-            userPromptInfo.searchResults(),
+            docs.stream().map(doc -> new VectorSearchResult(doc.getText(), doc.getMetadata(), doc.getScore())).toList(),
             llmModel,
             conversationId,
             startTime,
@@ -154,40 +175,28 @@ public class ConversationService {
     }
 
     private PromptWithSearchResults getUserPromptWithRagAugmentation(final ChatRequest chatRequest) {
-        final int topK = chatRequest.numberOfRagDocumentsToInclude() != null
-            ? chatRequest.numberOfRagDocumentsToInclude()
-            : 5;
-
-        if (nonNull(chatRequest.documentSourceIds()) && !chatRequest.documentSourceIds().isEmpty()) {
-            log.info("Using Rag -- topK: {}", topK);
-
-            final var vectorSearchResults = vectorSearchService.performSearch(
-                chatRequest.userPrompt(), topK, chatRequest.documentSourceIds());
-
-            // sort the docs so that they come in the sequence they were included in the source material
-            final var docs = vectorSearchResults.stream()
-                .sorted((a, b) -> {
-                    return (int)a.metadata().get("chunk_id") - (int)b.metadata().get("chunk_id");
-                })
-                .map(VectorSearchResult::text)
-                .collect(Collectors.joining("\n"));
-
-            final var userPrompt = """
-        Answer the question that comes at the end of this dialog, based only on the information between the Info tags:
-        
-        <Info>
-        %s
-        </Info>
-        
-        <Question>
-        %s
-        </Question>
-        """.formatted(docs, chatRequest.userPrompt());
-
-            return new PromptWithSearchResults(userPrompt, vectorSearchResults);
-        }
-
         return new PromptWithSearchResults(chatRequest.userPrompt(), List.of());
+    }
+
+    private QuestionAnswerAdvisor questionAnswerAdvisor(
+        final VectorStore vectorStore,
+        final int topK,
+        List<Integer> documentSourceIds
+    ) {
+        final String filterExpression = documentSourceIds.stream()
+            .map("source_id == %s"::formatted)
+            .collect(Collectors.joining(" || "));
+
+        log.debug("filter expression: '{}'", filterExpression);
+        log.debug("topK: '{}'", topK);
+
+        return QuestionAnswerAdvisor.builder(vectorStore)
+            .searchRequest(
+                SearchRequest.builder()
+                    .topK(topK)
+                    .filterExpression((filterExpression))
+                    .build())
+            .build();
     }
 }
 
