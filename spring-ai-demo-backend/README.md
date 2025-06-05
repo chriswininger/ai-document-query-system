@@ -23,3 +23,47 @@ but to compile we need a schema to generate jooq.
 
 To simplify this I'm checking in the generated jooq code. If you make changes to the schema manually run:
 `./gradlew jooqGenerate` and checkin the changes with your migration.
+
+## How To Open OLLAMA to Network requests
+
+https://www.reddit.com/r/ollama/comments/1bwhgfx/trying_to_connect_to_the_api_over_the_network/
+
+Run:
+
+```
+sudo systemctl edit ollama.service
+```
+
+Then in the top section, which allows for edits, place:
+
+```
+[Service]
+Environment="OLLAMA_HOST=0.0.0.0"
+```
+
+You can test if it worked by checking the contents of:
+
+```
+cat /etc/systemd/system/ollama.service.d/override.conf
+```
+
+Now run:
+
+```
+sudo systemctl daemon-reload && sudo systemctl restart ollama
+```
+
+and test with:
+
+```
+curl http://192.168.1.105:11434/api/generate -d '
+{  
+"model": "tinyllama",  
+"prompt": "Why is the blue sky blue?",  
+"stream": false,
+"options":{
+  "num_thread": 8,
+  "num_ctx": 2024
+  }
+}'  | jq .
+```
