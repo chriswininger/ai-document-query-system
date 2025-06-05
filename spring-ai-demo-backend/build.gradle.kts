@@ -35,6 +35,7 @@ dependencies {
 
 	// vector store for postgres
 	implementation("org.springframework.ai:spring-ai-starter-vector-store-pgvector")
+	implementation("org.springframework.ai:spring-ai-advisors-vector-store")
 
 	// db driver for migration and jooq
 	implementation("org.postgresql:postgresql:42.7.4")
@@ -90,9 +91,6 @@ flyway {
 }
 
 // == jooq ==
-//tasks.named("jooq") {
-//	dependsOn(tasks.named("classes"))
-//}
 jooq {
 	version.set("3.19.3")
 	configurations {
@@ -115,7 +113,7 @@ jooq {
 					}
 					target.apply {
 						packageName = "com.wininger.spring_ai_demo.jooq.generated"
-						directory = "build/generated-src/jooq/main"
+						directory = "src/generated/jooq"
 					}
 				}
 			}
@@ -123,15 +121,25 @@ jooq {
 	}
 }
 
-tasks.named<JavaCompile>("compileJava") {
-	dependsOn("generateJooq")
-}
-
 sourceSets {
 	main {
 		java {
-			srcDir("build/generated-src/jooq/main")
+			srcDir("src/generated/jooq")
 		}
 	}
 }
+
+// Uncommenting this makes it so Jooq Runs on compile
+// This was getting tricky thought because the db is manged through migrations
+// in the same module. We can't run migrations without compiling and we don't have
+// a schema without migrations. We could probably solve this by splitting the migrations into
+// a separate module, but I'd rather keep it simple for now.
+// If you change the schema run the generateJooq
+//tasks.named<JavaCompile>("compileJava") {
+//	dependsOn("generateJooq")
+//}
+
+
+
+
 
