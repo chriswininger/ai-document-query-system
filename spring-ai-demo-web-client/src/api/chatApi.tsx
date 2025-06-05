@@ -20,6 +20,7 @@ export interface ChatRequest {
   conversationId?: number;
   systemPrompt?: string;
   documentSourceIds?: number[];
+  numberOfRagDocumentsToInclude?: number
 }
 
 export interface ChatResponse {

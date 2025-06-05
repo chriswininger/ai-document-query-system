@@ -27,7 +27,7 @@ function Documents(
   { documents, selectedDocuments, onDocumentSelected }: { documents: DocumentImport[], selectedDocuments: DocumentImport[], onDocumentSelected: (document: DocumentImport, value: boolean) => void}
 ) {
   return documents.map(document => (
-          <div title={document.sourceName} key={document.id} className="document-list-item">
+          <div title={`id: ${document.id} -- '${document.sourceName}'`} key={document.id} className="document-list-item">
             <input
               type="checkbox"
               id={document.id + ''}

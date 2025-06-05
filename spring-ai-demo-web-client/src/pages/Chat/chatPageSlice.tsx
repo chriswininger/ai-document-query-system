@@ -21,9 +21,6 @@ const chatPageSlice = createSlice({
     conversationCleared: (state) => {
       state.conversation = []
       state.conversationId = undefined
-      state.userPrompt = ""
-      state.selectedDocuments = []
-      state.systemPrompt = getDefaultSystemPrompt();
     },
     documentSelected: (state, action) => {
       state.selectedDocuments = [
@@ -34,6 +31,9 @@ const chatPageSlice = createSlice({
     documentUnSelected: (state, action) => {
       state.selectedDocuments = state.selectedDocuments
         .filter(d => d.id !== action.payload.id)
+    },
+    numberOfRagDocumentsToIncludeUpdated: (state, action) => {
+      state.numberOfRagDocumentsToInclude = action.payload;
     }
   }
 });
@@ -44,7 +44,8 @@ function getInitialState(): ChatPageState {
     userPrompt: "",
     conversationId: undefined,
     conversation: [],
-    selectedDocuments: []
+    selectedDocuments: [],
+    numberOfRagDocumentsToInclude: 5
   }
 }
 
@@ -61,7 +62,8 @@ export const {
   conversationExchanged,
   documentUnSelected,
   documentSelected,
-  conversationCleared
+  conversationCleared,
+  numberOfRagDocumentsToIncludeUpdated
 } = chatPageSlice.actions;
 
 export default chatPageSlice.reducer;
@@ -71,5 +73,6 @@ export type ChatPageState = {
   userPrompt: string,
   conversationId?: number,
   conversation: ChatResponse []
-  selectedDocuments: DocumentImport []
+  selectedDocuments: DocumentImport [],
+  numberOfRagDocumentsToInclude: number
 }

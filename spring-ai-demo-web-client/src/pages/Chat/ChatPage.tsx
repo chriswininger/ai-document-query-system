@@ -8,7 +8,7 @@ import {
   conversationExchanged,
   conversationIdUpdated,
   documentSelected,
-  documentUnSelected,
+  documentUnSelected, numberOfRagDocumentsToIncludeUpdated,
   systemPromptUpdated,
   userPromptUpdated
 } from "./chatPageSlice.tsx";
@@ -23,6 +23,7 @@ export default function ChatPage() {
   const userPrompt = useUserPrompt();
   const systemPrompt = useSystemPrompt();
   const selectedDocuments = useSelectedDocuments();
+  const numberOfRagDocumentsToInclude = useNumberOfRagDocumentsToInclude();
 
   const bottomRef = useRef<HTMLSpanElement>(null);
 
@@ -42,6 +43,15 @@ export default function ChatPage() {
           value={systemPrompt}
           className="post-input system-prompt-input"
           onChange={(e) => dispatch(systemPromptUpdated(e.target.value))}
+        />
+
+        <label htmlFor="system-prnumberOfRagDocumentsToIncludeompt">Num RAG Documents to Include:</label>
+
+        <input
+          name="numberOfRagDocumentsToInclude"
+          value={numberOfRagDocumentsToInclude}
+          className="post-input"
+          onChange={(e) => dispatch(numberOfRagDocumentsToIncludeUpdated(e.target.value))}
         />
 
         <div className="conversation-area">
@@ -96,13 +106,14 @@ export default function ChatPage() {
       userPrompt,
       systemPrompt,
       conversationId,
+      numberOfRagDocumentsToInclude,
       documentSourceIds: selectedDocuments.map(d => d.id)
     })
 
     if (result.data) {
       dispatch(conversationExchanged(result.data));
       dispatch(conversationIdUpdated(result.data.conversationId));
-      dispatch(systemPromptUpdated(''));
+      dispatch(userPromptUpdated(''));
 
       setTimeout(() => {
         bottomRef.current?.scrollIntoView({behavior: 'smooth'});
@@ -128,3 +139,4 @@ const useSystemPrompt = () => useSelector((state: RootState) => state.chatPage.s
 const useConversationId = () => useSelector((state: RootState) => state.chatPage.conversationId);
 const useConversation = () => useSelector((state: RootState) => state.chatPage.conversation);
 const useSelectedDocuments = () => useSelector((state: RootState) => state.chatPage.selectedDocuments);
+const useNumberOfRagDocumentsToInclude = () => useSelector((state: RootState) => state.chatPage.numberOfRagDocumentsToInclude);
