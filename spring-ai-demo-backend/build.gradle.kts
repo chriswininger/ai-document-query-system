@@ -95,7 +95,7 @@ jooq {
 	version.set("3.19.3")
 	configurations {
 		create("main") {  // name of the jOOQ configuration
-			generateSchemaSourceOnCompilation.set(true)
+			generateSchemaSourceOnCompilation.set(false)
 
 			jooqConfiguration.apply {
 				jdbc.apply {
