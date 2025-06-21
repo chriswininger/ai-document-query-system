@@ -93,9 +93,14 @@ public class ConversationService {
 
         final ChatClientRequestSpec prompt = chatClient
             .prompt()
-            .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId))
-            .advisors(questionAnswerAdvisor(vectorStore, topK, chatRequest.documentSourceIds()))
-            .advisors(new RagDocumentCaptureAdvisor(ragDocsRef));
+            .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId));
+
+
+            if (topK > 0 && !chatRequest.documentSourceIds().isEmpty()) {
+                prompt.advisors(questionAnswerAdvisor(vectorStore, topK, chatRequest.documentSourceIds()));
+            }
+
+            prompt.advisors(new RagDocumentCaptureAdvisor(ragDocsRef));
 
         if (nonNull(chatRequest.systemPrompt())) {
           prompt.system(chatRequest.systemPrompt());
