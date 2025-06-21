@@ -13,14 +13,14 @@ public class LoggingAdvisor implements CallAroundAdvisor, StreamAroundAdvisor {
   public AdvisedResponse aroundCall(AdvisedRequest advisedRequest, CallAroundAdvisorChain chain) {
     logger.info("""
 
-            Request -- userText:
-            =========================
-            {}
-            ========================
-            """, advisedRequest.userText());
+      Request -- userText:
+      =========================
+      {}
+      ========================
+      """, advisedRequest.userText());
 
     logger.info("""
-       Resuest -- userParams:
+       Request -- userParams:
        =======================
        {}
        =======================
@@ -38,11 +38,14 @@ public class LoggingAdvisor implements CallAroundAdvisor, StreamAroundAdvisor {
     final var advisorResponse = chain.nextAroundCall(advisedRequest);
 
     logger.info("""
-        Response:
+        Result:
         ================
         {}
         ================
-        """, advisorResponse.response());
+        """, advisorResponse.response().getResult());
+
+    logger.info("Token Information: {}",
+        advisorResponse.response() != null ? advisorResponse.response().getMetadata().getUsage() : null);
 
     return advisorResponse;
   }
