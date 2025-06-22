@@ -5,12 +5,7 @@ This is an experiment, exploring the use of AI to query large documents in netwo
 
 [![Demo Video](./readme-assets/vid-preview.png)](https://youtu.be/hG719ZKUw4s?si=dUuHpKjDxTUafGHy)
 
-![App Screenshot](./readme-assets/app-screen-shot-1.png)
-<style>
-  img {
-    max-width: 900px;
-  }
-</style>
+![App Screenshot](./readme-assets/app-screen-shot-1-scaled.png)
 
 I want to explore several ideas and concepts:
 
