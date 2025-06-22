@@ -1,4 +1,4 @@
-Spring-ai-demo-backend
+AI Document Query System - Backend 
 =======================
 
 ## Requirements

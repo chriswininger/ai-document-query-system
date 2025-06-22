@@ -1,7 +1,7 @@
-Spring AI Demo Web Client
+AI Document Query System - Web Client
 ===========================
 
-This provides the frontend for the Spring AI Demo. It is a simple React application.
+This provides the frontend for the AI Document Query System. It is a simple React application.
 
 ## running
 

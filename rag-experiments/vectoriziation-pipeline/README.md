@@ -2,9 +2,9 @@ Vectorization Pipeline
 =======================
 
 This library is intended to handle the initial intake of documents, saving them into the document_import table
-of the database (scheme managed by spring-ai-demo-backend flyWheel migrations).
+of the database (scheme managed by ai-document-query-system-backend flyWheel migrations).
 
-Currently, the main function of this module `import-to-db.py` is perform the semantic chunking. Eventually I'd like
+Currently, the main function of this module `import-to-db.py` performs the semantic chunking. Eventually I'd like
 to move this into Java, but I was unable to identify a good package to make the semantic chunking step as simple as
 it is Python.
 

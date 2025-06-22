@@ -1,4 +1,4 @@
-Spring AI Demo
+AI Document Query System
 ---------------
 
 This is an experiment, exploring the use of AI to query personal libraries and large documents locally. 
