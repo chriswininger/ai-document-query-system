@@ -6,6 +6,17 @@ Spring-ai-demo-backend
 * ollama
   * `ollama pull mxbai-embed-large`
 
+## Running
+
+Pay attention to `spring.ai.ollama.base-url` in application.properties. If for example it is set to
+`spring.ai.ollama.base-url=http://192.168.1.23:11434`, make sure that machine is up, reachable, and has OLLAMA
+running on it (see more below about configuring OLLAMA for network access).
+
+```
+./start-db.sh
+./gradlew bootRun
+```
+
 ## Tech Stack
 
 ### Migrations
@@ -24,7 +35,7 @@ but to compile we need a schema to generate jooq.
 To simplify this I'm checking in the generated jooq code. If you make changes to the schema manually run:
 `./gradlew jooqGenerate` and checkin the changes with your migration.
 
-## How To Open OLLAMA to Network requests
+### OLLAMA -- How To Open OLLAMA to Network requests
 
 https://www.reddit.com/r/ollama/comments/1bwhgfx/trying_to_connect_to_the_api_over_the_network/
 
