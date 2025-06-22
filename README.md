@@ -1,7 +1,7 @@
 AI Document Query System
 ---------------
 
-This is an experiment, exploring the use of AI to query personal libraries and large documents locally. 
+This is an experiment, exploring the use of AI to query large documents in network. 
 
 ![App Screenshot](./readme-assets/app-screen-shot-1.png)
 <style>
@@ -28,8 +28,8 @@ I want to explore several ideas and concepts:
 
 ## Structure
 
-1. spring-ai-demo-backend: An API backed by large language models and a vector database
-2. spring-ai-demo-web-client: A React frontend which exposes visual ways to interact with the database
+1. api-spring: An API backed by large language models and a vector database
+2. web-client: A React frontend which exposes visual ways to interact with the database
 3. rag-experiments/vectorization-pipeline: The entry point for ingesting new documents. I would like to eventually shift
    this responsibility to spring-ai-demo-backend, but it's easier to experiment with the unstructured data in Python.
 
