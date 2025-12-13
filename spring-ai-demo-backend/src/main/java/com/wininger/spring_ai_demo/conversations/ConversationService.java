@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType.CONTENT;
+import static com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType.RAG_DOCUMENT;
 import static com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType.THINKING;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
@@ -165,13 +166,30 @@ public class ConversationService {
             ? chatRequest.numberOfRagDocumentsToInclude()
             : 5;
 
-        // Track the list of rag documents returned by the pipeline so that we can stream them to the client
-        final AtomicReference<List<Document>> ragDocsRef = new AtomicReference<>();
+        // Perform vector search directly to capture RAG documents before streaming
+        final String filterExpression = nonNull(chatRequest.documentSourceIds()) && !chatRequest.documentSourceIds().isEmpty()
+            ? chatRequest.documentSourceIds().stream()
+                .map("source_id == %s"::formatted)
+                .collect(Collectors.joining(" || "))
+            : null;
+
+        final var searchRequestBuilder = SearchRequest.builder()
+            .topK(topK)
+            .query(chatRequest.userPrompt());
+        if (nonNull(filterExpression)) {
+            searchRequestBuilder.filterExpression(filterExpression);
+        }
+
+        // Search for documents and capture them directly
+        final List<Document> ragDocs = vectorStore.similaritySearch(searchRequestBuilder.build());
+
+        log.debug("Found {} RAG documents for streaming", ragDocs.size());
+        System.out.println("!!! Direct vector search found " + ragDocs.size() + " documents");
+
         final ChatClientRequestSpec prompt = chatClient
             .prompt()
             .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId))
-            .advisors(questionAnswerAdvisor(vectorStore, topK, chatRequest.documentSourceIds()))
-            .advisors(new RagDocumentCaptureAdvisor(ragDocsRef));
+            .advisors(questionAnswerAdvisor(vectorStore, topK, chatRequest.documentSourceIds()));
 
         if (nonNull(chatRequest.systemPrompt())) {
           prompt.system(chatRequest.systemPrompt());
@@ -192,7 +210,17 @@ public class ConversationService {
 
         final AtomicBoolean isThinking = new AtomicBoolean(false);
 
-        return prompt
+        // Create RAG documents flux first
+        final Flux<ChatStreamingResponseItem> ragDocsFlux = Flux.fromIterable(ragDocs)
+            .map(doc -> new ChatStreamingResponseItem(
+                llmModel,
+                conversationId,
+                RAG_DOCUMENT,
+                doc.getText()
+            ));
+
+        // Then create the main LLM response stream
+        final Flux<ChatStreamingResponseItem> mainStream = prompt
             .stream()
             .content()
             .map(token -> {
@@ -206,6 +234,9 @@ public class ConversationService {
 
                 return new ChatStreamingResponseItem(llmModel, conversationId, responseItemType, token);
             });
+
+        // Return RAG documents first, then LLM response
+        return ragDocsFlux.concatWith(mainStream);
     }
 
     private ThinkingAndResponding cleanResponse(final String chatResponse) {
