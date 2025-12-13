@@ -15,6 +15,7 @@ public class RagDocumentCaptureAdvisor implements CallAroundAdvisor {
 
   @Override
   public AdvisedResponse aroundCall(AdvisedRequest advisedRequest, CallAroundAdvisorChain chain) {
+    System.out.println("!!! in around call");
     Object docs = advisedRequest.adviseContext().get("qa_retrieved_documents");
     if (docs instanceof List<?> docList) {
       capturedDocuments.set((List<Document>) docList);
