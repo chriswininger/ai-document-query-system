@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType.CONTENT;
+import static com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType.RAG_DOCUMENT;
 import static com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType.THINKING;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
@@ -205,10 +206,17 @@ public class ConversationService {
                 final ChatStreamingResponseItemType responseItemType = isThinking.get() ? THINKING : CONTENT;
 
                 return new ChatStreamingResponseItem(llmModel, conversationId, responseItemType, token);
-            }).doOnComplete(() -> {
+            })
+            .concatWith(Flux.defer(() -> {
                 final List<Document> docs = nonNull(ragDocsRef.get()) ? ragDocsRef.get() : List.of();
-                System.out.println("!!! rag: " + (docs != null ? docs.size() : 0));
-            });
+                return Flux.fromIterable(docs)
+                    .map(doc -> new ChatStreamingResponseItem(
+                        llmModel,
+                        conversationId,
+                        RAG_DOCUMENT,
+                        doc.getText()
+                    ));
+            }));
     }
 
     private ThinkingAndResponding cleanResponse(final String chatResponse) {
