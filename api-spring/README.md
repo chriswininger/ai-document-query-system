@@ -78,3 +78,8 @@ curl http://192.168.1.105:11434/api/generate -d '
   }
 }'  | jq .
 ```
+
+## Accessing Swagger Documentation
+
+• Swagger UI: http://localhost:8080/swagger-ui.html
+• OpenAPI JSON: http://localhost:8080/api-docs

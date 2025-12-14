@@ -54,6 +54,9 @@ dependencies {
 	// utils
 	implementation("org.javatuples:javatuples:1.2")
 
+	// OpenAPI/Swagger documentation
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14")
+
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
