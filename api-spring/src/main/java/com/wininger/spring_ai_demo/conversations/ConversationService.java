@@ -2,6 +2,8 @@ package com.wininger.spring_ai_demo.conversations;
 
 import com.wininger.spring_ai_demo.api.chat.ChatRequest;
 import com.wininger.spring_ai_demo.api.chat.ChatResponse;
+import com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItem;
+import com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType;
 import com.wininger.spring_ai_demo.api.rag.VectorSearchResult;
 import com.wininger.spring_ai_demo.api.rag.VectorSearchService;
 import com.wininger.spring_ai_demo.logging.LoggingAdvisor;
@@ -18,18 +20,26 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import static com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType.CONTENT;
+import static com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType.RAG_DOCUMENT;
+import static com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType.THINKING;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
 @Service
 public class ConversationService {
+    private static final String THINKING_START_TOKEN = "<think>";
+    private static final String THINKING_END_TOKEN = "</think>";
+
     @Value("${spring.ai.ollama.chat.options.model}")
     private String llmModel;
 
@@ -53,7 +63,7 @@ public class ConversationService {
         final VectorStore vectorStore,
         final VectorSearchService vectorSearchService,
         final TokenCountEstimator tokenCountEstimator
-        ) {
+    ) {
         this.chatClient = chatClientBuilder
             .defaultAdvisors(
                 new MessageChatMemoryAdvisor(new InMemoryChatMemory()),
@@ -146,6 +156,74 @@ public class ConversationService {
         );
     }
 
+    // TODO See If we can track Rag Docs
+    public Flux<ChatStreamingResponseItem> performConversationExchangeStreaming(
+        final ChatRequest chatRequest
+    ) {
+        final var startTime = new Date();
+        final int conversationId = nonNull(chatRequest.conversationId())
+            ? chatRequest.conversationId()
+            : getNextConversationId();
+
+        log.info("processing /api/v1/chat/generic/stream at {}", startTime);
+
+        final int topK = chatRequest.numberOfRagDocumentsToInclude() != null
+            ? chatRequest.numberOfRagDocumentsToInclude()
+            : 5;
+
+        // Track the list of rag documents returned by the pipeline so that we can stream them to the client
+        final AtomicReference<List<Document>> ragDocsRef = new AtomicReference<>();
+        final ChatClientRequestSpec prompt = chatClient
+            .prompt()
+            .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId))
+            .advisors(questionAnswerAdvisor(vectorStore, topK, chatRequest.documentSourceIds()))
+            .advisors(new RagDocumentCaptureAdvisor(ragDocsRef));
+
+        if (nonNull(chatRequest.systemPrompt())) {
+            prompt.system(chatRequest.systemPrompt());
+        }
+
+        final var userPromptInfo = getUserPromptWithRagAugmentation(chatRequest);
+        final var promptWithRag = userPromptInfo.userPrompt();
+        final var estimatedTokens = tokenCountEstimator.estimate(promptWithRag);
+
+        log.info("Constructed prompt is '{}' characters", promptWithRag.length());
+        log.info("Constructed prompt is around '{}' tokens", estimatedTokens);
+
+        if (estimatedTokens >= contextWindow) {
+            log.warn("The number of tokens will exceed the context window of '{}'", contextWindow);
+        }
+
+        prompt.user(promptWithRag);
+
+        final AtomicBoolean isThinking = new AtomicBoolean(false);
+
+        return prompt
+            .stream()
+            .content()
+            .map(token -> {
+                if (THINKING_START_TOKEN.equals(token)) {
+                    isThinking.set(true);
+                } else if (THINKING_END_TOKEN.equals(token)) {
+                    isThinking.set(false);
+                }
+
+                final ChatStreamingResponseItemType responseItemType = isThinking.get() ? THINKING : CONTENT;
+
+                return new ChatStreamingResponseItem(llmModel, conversationId, responseItemType, token);
+            })
+            .concatWith(Flux.defer(() -> {
+                final List<Document> docs = nonNull(ragDocsRef.get()) ? ragDocsRef.get() : List.of();
+                return Flux.fromIterable(docs)
+                    .map(doc -> new ChatStreamingResponseItem(
+                        llmModel,
+                        conversationId,
+                        RAG_DOCUMENT,
+                        doc.getText()
+                    ));
+            }));
+    }
+
     private ThinkingAndResponding cleanResponse(final String chatResponse) {
         if (isNull(chatResponse)) {
             return new ThinkingAndResponding("", "");
@@ -165,8 +243,8 @@ public class ConversationService {
             final int startCloseThinkTag = chatResponse.indexOf("</think>");
 
             if (startCloseThinkTag < 0) {
-              log.warn("no closing tag");
-              return new ThinkingAndResponding("", chatResponse.trim());
+                log.warn("no closing tag");
+                return new ThinkingAndResponding("", chatResponse.trim());
             }
 
             final var thinking = chatResponse.substring(startOpenThinkTag + 7, startCloseThinkTag);
