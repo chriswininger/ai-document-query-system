@@ -1,4 +1,4 @@
-extra["springAiVersion"] = "1.0.0-M7"
+extra["springAiVersion"] = "1.1.2"
 extra["flywayVersion"] = "11.7.2"
 
 plugins {
@@ -37,6 +37,9 @@ dependencies {
 	// vector store for postgres
 	implementation("org.springframework.ai:spring-ai-starter-vector-store-pgvector")
 	implementation("org.springframework.ai:spring-ai-advisors-vector-store")
+
+	// Spring AI retry auto-config expects RetryTemplate to be on the classpath
+	implementation("org.springframework.retry:spring-retry")
 
 	// db driver for migration and jooq
 	implementation("org.postgresql:postgresql:42.7.4")

@@ -13,8 +13,13 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.ChatClient.ChatClientRequestSpec;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
-import org.springframework.ai.chat.memory.InMemoryChatMemory;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
+import org.springframework.ai.chat.memory.MessageWindowChatMemory;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.ollama.OllamaChatModel;
+import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.ai.tokenizer.TokenCountEstimator;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -64,9 +69,28 @@ public class ConversationService {
         final VectorSearchService vectorSearchService,
         final TokenCountEstimator tokenCountEstimator
     ) {
+
+        InMemoryChatMemoryRepository chatMemoryRepository = new InMemoryChatMemoryRepository();
+
+        ChatMemory chatMemory = MessageWindowChatMemory.builder()
+            .chatMemoryRepository(chatMemoryRepository)
+            .build();
+
+        // 2. Pass the repository to the static builder() method as a required argument
+        MessageChatMemoryAdvisor chatMemoryAdvisor = MessageChatMemoryAdvisor.builder(chatMemory)
+            .build();
+
+        // https://docs.spring.io/spring-ai/reference/api/chat/ollama-chat.html#_enabling_thinking_mode
+        /*
+        OllamaChatOptions.builder()
+            .model("qwen3")
+            .enableThinking()
+            .build()
+         */
+
         this.chatClient = chatClientBuilder
             .defaultAdvisors(
-                new MessageChatMemoryAdvisor(new InMemoryChatMemory()),
+                chatMemoryAdvisor,
                 new LoggingAdvisor()
             )
             .defaultSystem("""
@@ -100,6 +124,10 @@ public class ConversationService {
             : 5;
 
         final AtomicReference<List<Document>> ragDocsRef = new AtomicReference<>();
+
+        final var ollamaOptions = OllamaChatOptions.builder()
+            .enableThinking()
+            .build();
 
         final ChatClientRequestSpec prompt = chatClient
             .prompt()
@@ -202,6 +230,7 @@ public class ConversationService {
             .stream()
             .content()
             .map(token -> {
+                System.out.println("!!! token arrived: " + token);
                 if (THINKING_START_TOKEN.equals(token)) {
                     isThinking.set(true);
                 } else if (THINKING_END_TOKEN.equals(token)) {
@@ -213,6 +242,7 @@ public class ConversationService {
                 return new ChatStreamingResponseItem(llmModel, conversationId, responseItemType, token);
             })
             .concatWith(Flux.defer(() -> {
+                System.out.println("Concating documents");
                 final List<Document> docs = nonNull(ragDocsRef.get()) ? ragDocsRef.get() : List.of();
                 return Flux.fromIterable(docs)
                     .map(doc -> new ChatStreamingResponseItem(
@@ -225,6 +255,7 @@ public class ConversationService {
     }
 
     private ThinkingAndResponding cleanResponse(final String chatResponse) {
+        System.out.println("!!! full chat Response: " + chatResponse);
         if (isNull(chatResponse)) {
             return new ThinkingAndResponding("", "");
         }

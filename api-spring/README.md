@@ -83,3 +83,7 @@ curl http://192.168.1.105:11434/api/generate -d '
 
 • Swagger UI: http://localhost:8080/swagger-ui.html
 • OpenAPI JSON: http://localhost:8080/api-docs
+
+
+much grr https://docs.spring.io/spring-ai/reference/api/chat-memory.html
+interesting: https://docs.spring.io/spring-ai/reference/observability/index.html

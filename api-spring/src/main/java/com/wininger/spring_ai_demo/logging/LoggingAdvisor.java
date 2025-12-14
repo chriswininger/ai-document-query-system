@@ -2,29 +2,33 @@ package com.wininger.spring_ai_demo.logging;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.chat.client.advisor.api.*;
-import org.springframework.ai.chat.model.MessageAggregator;
+import org.springframework.ai.chat.client.ChatClientRequest;
+import org.springframework.ai.chat.client.ChatClientResponse;
+import org.springframework.ai.chat.client.advisor.api.CallAdvisor;
+import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
+import org.springframework.ai.chat.client.advisor.api.StreamAdvisor;
+import org.springframework.ai.chat.client.advisor.api.StreamAdvisorChain;
 import reactor.core.publisher.Flux;
 
-public class LoggingAdvisor implements CallAroundAdvisor, StreamAroundAdvisor {
+public class LoggingAdvisor implements CallAdvisor, StreamAdvisor {
   private static final Logger logger = LoggerFactory.getLogger(LoggingAdvisor.class);
 
   @Override
-  public AdvisedResponse aroundCall(AdvisedRequest advisedRequest, CallAroundAdvisorChain chain) {
+  public ChatClientResponse adviseCall(ChatClientRequest request, CallAdvisorChain chain) {
     logger.info("""
 
-      Request -- userText:
+      Request -- prompt:
       =========================
       {}
       ========================
-      """, advisedRequest.userText());
+      """, request.prompt());
 
     logger.info("""
-       Request -- userParams:
+       Request -- context:
        =======================
        {}
        =======================
-    """, advisedRequest.userParams());
+    """, request.context());
 
     logger.info("""
 
@@ -32,32 +36,31 @@ public class LoggingAdvisor implements CallAroundAdvisor, StreamAroundAdvisor {
         ====================
         {}
         ====================
-        """, advisedRequest.messages());
+        """, request.prompt().getInstructions());
 
 
-    final var advisorResponse = chain.nextAroundCall(advisedRequest);
+    final var advisorResponse = chain.nextCall(request);
 
     logger.info("""
         Result:
         ================
         {}
         ================
-        """, advisorResponse.response().getResult());
+        """, advisorResponse.chatResponse().getResult());
 
     logger.info("Token Information: {}",
-        advisorResponse.response() != null ? advisorResponse.response().getMetadata().getUsage() : null);
+        advisorResponse.chatResponse() != null ? advisorResponse.chatResponse().getMetadata().getUsage() : null);
 
     return advisorResponse;
   }
 
   @Override
-  public Flux<AdvisedResponse> aroundStream(AdvisedRequest advisedRequest, StreamAroundAdvisorChain chain) {
-    logger.debug("BEFORE: {}", advisedRequest);
+  public Flux<ChatClientResponse> adviseStream(ChatClientRequest request, StreamAdvisorChain chain) {
+    logger.debug("BEFORE: {}", request);
 
-    Flux<AdvisedResponse> advisedResponses = chain.nextAroundStream(advisedRequest);
+    Flux<ChatClientResponse> responses = chain.nextStream(request);
 
-    return new MessageAggregator().aggregateAdvisedResponse(advisedResponses,
-        advisedResponse -> logger.debug("AFTER: {}", advisedResponse));
+    return responses.doOnNext(response -> logger.debug("AFTER: {}", response));
   }
 
   @Override
