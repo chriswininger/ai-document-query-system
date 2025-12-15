@@ -84,6 +84,36 @@ curl http://192.168.1.105:11434/api/generate -d '
 • Swagger UI: http://localhost:8080/swagger-ui.html
 • OpenAPI JSON: http://localhost:8080/api-docs
 
+## Scratch
 
 much grr https://docs.spring.io/spring-ai/reference/api/chat-memory.html
 interesting: https://docs.spring.io/spring-ai/reference/observability/index.html
+
+
+![img.png](img.png)
+
+
+Taken from Here https://docs.spring.io/spring-ai/reference/api/chat/ollama-chat.html#_streaming_with_thinking
+
+```
+Flux<ChatResponse> stream = chatModel.stream(
+    new Prompt(
+        "Explain quantum entanglement",
+        OllamaChatOptions.builder()
+            .model("qwen3")
+            .enableThinking()
+            .build()
+    ));
+
+stream.subscribe(response -> {
+    String thinking = response. response.getResult().getMetadata().get("thinking");
+    String content = response.getResult().getOutput().getContent();
+
+    if (thinking != null && !thinking.isEmpty()) {
+        System.out.println("[Thinking] " + thinking);
+    }
+    if (content != null && !content.isEmpty()) {
+        System.out.println("[Response] " + content);
+    }
+});
+```
