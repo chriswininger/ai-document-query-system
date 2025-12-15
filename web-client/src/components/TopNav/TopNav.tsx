@@ -24,5 +24,16 @@ export default function TopNav() {
         Vector Search
       </NavLink>
     </li>
+
+    <li>
+      <NavLink
+        to="/streaming-chat"
+        className={({ isActive }) =>
+          isActive ? "active" : ""
+        }
+      >
+        Streaming Chat
+      </NavLink>
+    </li>
   </ul>
 }

@@ -7,6 +7,7 @@ import VectorSearch from "./pages/VectorSearch/VectorSearch.tsx";
 import {Provider} from "react-redux";
 import {store} from "./store/store.tsx";
 import ChatPage from "./pages/Chat/ChatPage.tsx";
+import StreamingChat from "./pages/StreamingChat/StreamingChat.tsx";
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -16,6 +17,7 @@ createRoot(document.getElementById('root')!).render(
         <Routes>
           <Route path="/" element={<ChatPage />} />
           <Route path="vector-search" element={<VectorSearch />} />
+          <Route path="streaming-chat" element={<StreamingChat />} />
         </Routes>
       </BrowserRouter>
     </Provider>
