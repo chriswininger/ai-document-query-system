@@ -20,7 +20,6 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.ollama.api.OllamaChatOptions;
-import org.springframework.ai.ollama.api.OllamaModel;
 import org.springframework.ai.tokenizer.TokenCountEstimator;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -31,7 +30,6 @@ import reactor.core.publisher.Flux;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -39,14 +37,11 @@ import java.util.stream.Collectors;
 import static com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType.CONTENT;
 import static com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType.RAG_DOCUMENT;
 import static com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType.THINKING;
-import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
 @Service
 public class ConversationService {
-    private static final String THINKING_START_TOKEN = "<think>";
-    private static final String THINKING_END_TOKEN = "</think>";
-
+    // TODO: I can get this from the chatResponse
     @Value("${spring.ai.ollama.chat.options.model}")
     private String llmModel;
 
@@ -123,10 +118,6 @@ public class ConversationService {
             : 5;
 
         final AtomicReference<List<Document>> ragDocsRef = new AtomicReference<>();
-
-        final var ollamaOptions = OllamaChatOptions.builder()
-            .enableThinking()
-            .build();
 
         final ChatClientRequestSpec prompt = chatClient
             .prompt()
@@ -219,7 +210,7 @@ public class ConversationService {
             .prompt()
             .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId))
             .advisors(questionAnswerAdvisor(vectorStore, topK, chatRequest.documentSourceIds()))
-            .advisors(new RagDocumentCaptureAdvisor(ragDocsRef));
+            .advisors(new RagDocumentCaptureAdvisor(ragDocsRef)); // TODO: I think I can actually get these from modelResponse object
 
         if (nonNull(chatRequest.systemPrompt())) {
             prompt.system(chatRequest.systemPrompt());
@@ -238,22 +229,26 @@ public class ConversationService {
 
         prompt.user(promptWithRag);
 
-        final AtomicBoolean isThinking = new AtomicBoolean(false);
-
         return prompt
             .stream()
-            .content()
-            .map(token -> {
-                log.debug("token arrived on stream: {}", token);
-                if (THINKING_START_TOKEN.equals(token)) {
-                    isThinking.set(true);
-                } else if (THINKING_END_TOKEN.equals(token)) {
-                    isThinking.set(false);
-                }
+            .chatResponse()
+            .map(chatResponse -> {
+                // will always be null due to this issue https://github.com/spring-projects/spring-ai/issues/4866
+                // there is a fix, watch for it to make it into a release
+                final String thinking = chatResponse.getResult().getMetadata().get("thinking");
+                final String output = chatResponse.getResult().getOutput().getText();
 
-                final ChatStreamingResponseItemType responseItemType = isThinking.get() ? THINKING : CONTENT;
+                /*
+                final ChatStreamingResponseItemType type = (nonNull(thinking) && !thinking.isEmpty())
+                    ? THINKING : CONTENT;*/
 
-                return new ChatStreamingResponseItem(llmModel, conversationId, responseItemType, token);
+                // switch to the above version when thinking bug is fixed https://github.com/spring-projects/spring-ai/issues/4866
+                final ChatStreamingResponseItemType itemType = (nonNull(output) && !output.isEmpty())
+                    ? CONTENT : THINKING;
+
+                final String text = nonNull(thinking) && !thinking.isEmpty() ? thinking : output;
+
+                return new ChatStreamingResponseItem(llmModel, conversationId, itemType, text);
             })
             .concatWith(Flux.defer(() -> {
                 log.debug("Concat documents to stream");
@@ -266,40 +261,6 @@ public class ConversationService {
                         doc.getText()
                     ));
             }));
-    }
-
-    private ThinkingAndResponding cleanResponse(final String chatResponse) {
-        System.out.println("!!! full chat Response: " + chatResponse);
-        if (isNull(chatResponse)) {
-            return new ThinkingAndResponding("", "");
-        }
-
-        final var thinkingAndResponding = splitThinking(chatResponse);
-
-        // log.info(thinkingAndResponding.toString());
-
-        return thinkingAndResponding;
-    }
-
-    public ThinkingAndResponding splitThinking(final String chatResponse) {
-        final int startOpenThinkTag = chatResponse.indexOf("<think>");
-
-        if (startOpenThinkTag >= 0) {
-            final int startCloseThinkTag = chatResponse.indexOf("</think>");
-
-            if (startCloseThinkTag < 0) {
-                log.warn("no closing tag");
-                return new ThinkingAndResponding("", chatResponse.trim());
-            }
-
-            final var thinking = chatResponse.substring(startOpenThinkTag + 7, startCloseThinkTag);
-            final var response = chatResponse.substring(0, startOpenThinkTag) +
-                chatResponse.substring(startCloseThinkTag + 8);
-
-            return new ThinkingAndResponding(thinking.trim(), response.trim());
-        } else {
-            return new ThinkingAndResponding("", chatResponse.trim());
-        }
     }
 
     public ChatResponse performTestChat(final String userPrompt) {
@@ -324,6 +285,37 @@ public class ConversationService {
             new Date(),
             new Date()
         );
+    }
+
+    public Flux<ChatResponse> performTestChatStream(final String userPrompt) {
+        return this.ollamaChatModel.stream(
+            new Prompt(
+                userPrompt,
+                OllamaChatOptions.builder()
+                    .enableThinking()
+                    .build()
+            )).map((chatResponse) -> {
+
+
+                // will always be null due to this issue https://github.com/spring-projects/spring-ai/issues/4866
+                // there is a fix, watch for it to make it into a release
+                final String thinking = chatResponse.getResult().getMetadata().get("thinking");
+                if (thinking != null && !thinking.isEmpty()) {
+                    System.out.println("!!! THINKING");
+                    System.out.println("[Thinking] " + thinking);
+                }
+
+                String answer = chatResponse.getResult().getOutput().getText();
+                    return new ChatResponse(
+                        userPrompt,
+                        answer,
+                        thinking,
+                        new ArrayList<>(),
+                        llmModel,
+                        0,
+                        new Date(),
+                        new Date());
+                });
     }
 
     private PromptWithSearchResults getUserPromptWithRagAugmentation(final ChatRequest chatRequest) {
