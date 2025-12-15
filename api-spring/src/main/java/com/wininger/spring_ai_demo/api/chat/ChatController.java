@@ -23,6 +23,12 @@ public class ChatController {
         return this.conversationService.performConversationExchange(chatRequest);
     }
 
+    @PostMapping(path = "/generic/test", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ChatResponse chatTest(@RequestBody final ChatRequest chatRequest) {
+        return this.conversationService.performTestChat(chatRequest.userPrompt());
+    }
+
+
     @PostMapping(path = "/generic/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Flux<ChatStreamingResponseItem>> chatStreaming(@RequestBody final ChatRequest chatRequest) {
         return ResponseEntity.ok()

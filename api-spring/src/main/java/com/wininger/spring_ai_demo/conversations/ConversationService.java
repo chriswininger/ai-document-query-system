@@ -20,6 +20,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.ollama.api.OllamaChatOptions;
+import org.springframework.ai.ollama.api.OllamaModel;
 import org.springframework.ai.tokenizer.TokenCountEstimator;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -27,6 +28,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -63,13 +65,18 @@ public class ConversationService {
 
     private final TokenCountEstimator tokenCountEstimator;
 
+    private final OllamaChatModel ollamaChatModel;
+
     public ConversationService(
         final ChatClient.Builder chatClientBuilder,
         final VectorStore vectorStore,
         final VectorSearchService vectorSearchService,
-        final TokenCountEstimator tokenCountEstimator
+        final TokenCountEstimator tokenCountEstimator,
+        final OllamaChatModel ollamaChatModel
     ) {
+        this.ollamaChatModel = ollamaChatModel;
 
+        // ==================================
         InMemoryChatMemoryRepository chatMemoryRepository = new InMemoryChatMemoryRepository();
 
         ChatMemory chatMemory = MessageWindowChatMemory.builder()
@@ -79,14 +86,6 @@ public class ConversationService {
         // 2. Pass the repository to the static builder() method as a required argument
         MessageChatMemoryAdvisor chatMemoryAdvisor = MessageChatMemoryAdvisor.builder(chatMemory)
             .build();
-
-        // https://docs.spring.io/spring-ai/reference/api/chat/ollama-chat.html#_enabling_thinking_mode
-        /*
-        OllamaChatOptions.builder()
-            .model("qwen3")
-            .enableThinking()
-            .build()
-         */
 
         this.chatClient = chatClientBuilder
             .defaultAdvisors(
@@ -160,27 +159,42 @@ public class ConversationService {
         final var modelResponse = prompt
             .call();
 
-        final String content = modelResponse
-            .content();
+       final var chatResponse = modelResponse.chatResponse();
+
+        final String thinking;
+        final String output;
+       if (nonNull(chatResponse)) {
+           final var promptTokens = chatResponse.getMetadata().getUsage().getPromptTokens();
+           final var completionTokens = chatResponse.getMetadata().getUsage().getCompletionTokens();
+           final var totalTokens = chatResponse.getMetadata().getUsage().getTotalTokens();
+
+           log.info("promptTokens: {}, completionTokens: {}, totalTokens: {}", promptTokens, completionTokens, totalTokens);
+
+           thinking = chatResponse.getResult().getMetadata().get("thinking");
+           output = chatResponse.getResult().getOutput().getText();
+
+           log.debug("======================");
+           log.debug("thinking: {}\n\n", thinking);
+           log.debug("output: {}", output);
+           log.debug("======================");
+       } else {
+           thinking = "";
+           output = "";
+       }
 
         final List<Document> docs = nonNull(ragDocsRef.get()) ? ragDocsRef.get() : List.of();
-        System.out.println("!!! rag: " + (docs != null ? docs.size() : 0));
-
-
-        var endTime = new Date();
-        log.info("finished processing /api/v1/chat {} at", endTime);
-
-        final var thinkingAndResponding = cleanResponse(content);
-
+        log.info("found {} RAG documents", docs.size());
         return new ChatResponse(
             chatRequest.userPrompt(),
-            thinkingAndResponding.response(),
-            thinkingAndResponding.thinking(),
-            docs.stream().map(doc -> new VectorSearchResult(doc.getText(), doc.getMetadata(), doc.getScore())).toList(),
+            output,
+            thinking,
+            docs.stream().map(doc ->
+                new VectorSearchResult(doc.getText(), doc.getMetadata(), doc.getScore())
+            ).toList(),
             llmModel,
             conversationId,
             startTime,
-            endTime
+            new Date()
         );
     }
 
@@ -230,7 +244,7 @@ public class ConversationService {
             .stream()
             .content()
             .map(token -> {
-                System.out.println("!!! token arrived: " + token);
+                log.debug("token arrived on stream: {}", token);
                 if (THINKING_START_TOKEN.equals(token)) {
                     isThinking.set(true);
                 } else if (THINKING_END_TOKEN.equals(token)) {
@@ -242,7 +256,7 @@ public class ConversationService {
                 return new ChatStreamingResponseItem(llmModel, conversationId, responseItemType, token);
             })
             .concatWith(Flux.defer(() -> {
-                System.out.println("Concating documents");
+                log.debug("Concat documents to stream");
                 final List<Document> docs = nonNull(ragDocsRef.get()) ? ragDocsRef.get() : List.of();
                 return Flux.fromIterable(docs)
                     .map(doc -> new ChatStreamingResponseItem(
@@ -286,6 +300,30 @@ public class ConversationService {
         } else {
             return new ThinkingAndResponding("", chatResponse.trim());
         }
+    }
+
+    public ChatResponse performTestChat(final String userPrompt) {
+        var response = this.ollamaChatModel.call(
+            new Prompt(
+                userPrompt,
+                OllamaChatOptions.builder()
+                    .enableThinking()
+                    .build()
+            ));
+
+        final String thinking = response.getResult().getMetadata().get("thinking");
+        String answer = response.getResult().getOutput().getText();
+
+        return new ChatResponse(
+            userPrompt,
+            answer,
+            thinking,
+            new ArrayList<>(),
+            llmModel,
+            0,
+            new Date(),
+            new Date()
+        );
     }
 
     private PromptWithSearchResults getUserPromptWithRagAugmentation(final ChatRequest chatRequest) {
