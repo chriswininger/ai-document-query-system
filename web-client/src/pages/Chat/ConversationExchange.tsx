@@ -24,7 +24,10 @@ export function ConversationExchange({ exchange }: { exchange: ChatResponse}) {
           </pre>
 
           <div className="thinking-wrapper">
-            <button className="thinking-see-more" onClick={showMoreClicked}>See Thinking {showMore ? down : up}</button>
+            <button className="thinking-see-more" onClick={showMoreClicked}>
+              <span className="thinking-see-more-text">See Thinking</span>
+              <span className="thinking-see-more-icon">{showMore ? down : up}</span>
+            </button>
 
             {showMore && <div className="thinking-result-content">
               <p>

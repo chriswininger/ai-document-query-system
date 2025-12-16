@@ -87,11 +87,25 @@
 }
 
 .thinking-see-more {
-    text-align: right;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0.5rem 1rem;
 
     /* override button attributes */
     border: none;
     border-radius: 0;
+}
+
+.thinking-see-more-text {
+    flex: 1;
+    text-align: center;
+}
+
+.thinking-see-more-icon {
+    margin-left: auto;
+    padding-left: 1rem;
 }
 
 
