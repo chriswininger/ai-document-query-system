@@ -23,6 +23,17 @@ export function ConversationExchange({ exchange }: { exchange: ChatResponse}) {
             {exchange.response}
           </pre>
 
+          <div className="thinking-wrapper">
+            <button className="thinking-see-more" onClick={showMoreClicked}>See Thinking {showMore ? down : up}</button>
+
+            {showMore && <div className="thinking-result-content">
+              <p>
+                {exchange.thinking}
+              </p>
+            </div>
+            }
+          </div>
+
            <div className="exchange-more">
               <button className="exchange-see-more" onClick={showMoreClicked}>See Documents Used {showMore ? down : up}</button>
 

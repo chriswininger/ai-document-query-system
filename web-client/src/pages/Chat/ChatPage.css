@@ -68,6 +68,33 @@
     padding-left: 0;
 }
 
+.thinking-wrapper {
+    width: 95%;
+    margin-left: auto;
+    margin-right: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+
+    border: 1px solid #4146b7;
+
+    margin-bottom: 0.5rem;
+}
+
+.thinking-result-content {
+    margin-bottom: 1rem;
+    padding: 1rem;
+}
+
+.thinking-see-more {
+    text-align: right;
+
+    /* override button attributes */
+    border: none;
+    border-radius: 0;
+}
+
+
 .exchange-more {
     width: 90%;
     display: flex;
