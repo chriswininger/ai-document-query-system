@@ -8,13 +8,28 @@ import org.springframework.ai.chat.client.advisor.api.CallAdvisor;
 import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
 import org.springframework.ai.chat.client.advisor.api.StreamAdvisor;
 import org.springframework.ai.chat.client.advisor.api.StreamAdvisorChain;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 
+@Component
 public class LoggingAdvisor implements CallAdvisor, StreamAdvisor {
   private static final Logger logger = LoggerFactory.getLogger(LoggingAdvisor.class);
+  
+  private final boolean enabled;
+  
+  public LoggingAdvisor(
+      @Value("${spring.ai.chat.logging-advisor.enabled:false}") boolean enabled
+  ) {
+    this.enabled = enabled;
+  }
 
   @Override
   public ChatClientResponse adviseCall(ChatClientRequest request, CallAdvisorChain chain) {
+    if (!enabled) {
+      return chain.nextCall(request);
+    }
+    
     logger.info("""
 
       Request -- prompt:
@@ -56,6 +71,10 @@ public class LoggingAdvisor implements CallAdvisor, StreamAdvisor {
 
   @Override
   public Flux<ChatClientResponse> adviseStream(ChatClientRequest request, StreamAdvisorChain chain) {
+    if (!enabled) {
+      return chain.nextStream(request);
+    }
+    
     logger.debug("BEFORE: {}", request);
 
     Flux<ChatClientResponse> responses = chain.nextStream(request);

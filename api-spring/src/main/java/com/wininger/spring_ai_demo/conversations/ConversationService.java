@@ -57,8 +57,6 @@ public class ConversationService {
 
     private final VectorStore vectorStore;
 
-    private final VectorSearchService vectorSearchService;
-
     private final TokenCountEstimator tokenCountEstimator;
 
     private final OllamaChatModel ollamaChatModel;
@@ -68,10 +66,10 @@ public class ConversationService {
     public ConversationService(
         final ChatClient.Builder chatClientBuilder,
         final VectorStore vectorStore,
-        final VectorSearchService vectorSearchService,
         final TokenCountEstimator tokenCountEstimator,
         final OllamaChatModel ollamaChatModel,
-        final QueryRewritingService queryRewritingService
+        final QueryRewritingService queryRewritingService,
+        final LoggingAdvisor loggingAdvisor
     ) {
         this.ollamaChatModel = ollamaChatModel;
         this.queryRewritingService = queryRewritingService;
@@ -90,14 +88,13 @@ public class ConversationService {
         this.chatClient = chatClientBuilder
             .defaultAdvisors(
                 chatMemoryAdvisor,
-                new LoggingAdvisor()
+                loggingAdvisor
             )
             .defaultSystem("""
                 You are a helpful assistant. If you do not know something you simply say so.
                 """)
             .build();
 
-        this.vectorSearchService = vectorSearchService;
         this.tokenCountEstimator = tokenCountEstimator;
         this.vectorStore = vectorStore;
     }
@@ -110,94 +107,35 @@ public class ConversationService {
         final ChatRequest chatRequest
     ) {
         final var startTime = new Date();
-        final int conversationId = nonNull(chatRequest.conversationId())
-            ? chatRequest.conversationId()
-            : getNextConversationId();
 
-        log.info("processing /api/v1/chat at {}", startTime);
+        // TODO: Thinking will be missing until the spring streaming bug is fixed
+        final var thinkingBuilder = new StringBuilder();
+        final var outputBuilder = new StringBuilder();
+        final List<VectorSearchResult> ragDocs = new ArrayList<>();
 
-        final int topK = chatRequest.numberOfRagDocumentsToInclude() != null
-            ? chatRequest.numberOfRagDocumentsToInclude()
-            : 5;
+        final List<ChatStreamingResponseItem> streamingResponseItems = performConversationExchangeStreaming(chatRequest)
+            .collectList()
+            .block();
 
-        final AtomicReference<List<Document>> ragDocsRef = new AtomicReference<>();
-
-        final ChatClientRequestSpec prompt = chatClient
-            .prompt()
-            .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId));
-
-        // if we the user is requestiong the use of rag
-        if (topK > 0 && !chatRequest.documentSourceIds().isEmpty()) {
-            // Rewrite the user query for better vector search matching
-            String originalUserPrompt = chatRequest.userPrompt();
-            String rewrittenQuery = queryRewritingService.rewriteQuerySingle(originalUserPrompt);
-            log.info("Query rewriting: '{}' -> '{}'", originalUserPrompt, rewrittenQuery);
-
-            // Use custom advisor with query rewriting
-            String filterExpression = buildFilterExpression(chatRequest.documentSourceIds());
-            prompt.advisors(new QueryRewritingVectorStoreAdvisor(vectorStore, topK, filterExpression, rewrittenQuery));
-
-            // Option 2: Use QuestionAnswerAdvisor (it will extract from the rewritten user prompt)
-            // We'll modify the user prompt to use the rewritten version for search
-            // But keep original for display - this is handled below
-
-            // capture the rag documents the pipeline retrieves (we may be able to get his from chatResponse now)
-            prompt.advisors(new RagDocumentCaptureAdvisor(ragDocsRef));
+        if (nonNull(streamingResponseItems)) {
+            streamingResponseItems.forEach(item -> {
+                switch (item.itemType()) {
+                    case THINKING -> thinkingBuilder.append(item.output());
+                    case CONTENT -> outputBuilder.append(item.output());
+                    case RAG_DOCUMENT -> ragDocs.add(item.vectorSearchResult());
+                }
+            });
         }
 
+        final int conversationId = streamingResponseItems.isEmpty()
+            ? nonNull(chatRequest.conversationId()) ? chatRequest.conversationId() : getNextConversationId()
+            : streamingResponseItems.getFirst().conversationId();
 
-        if (nonNull(chatRequest.systemPrompt())) {
-          prompt.system(chatRequest.systemPrompt());
-        }
-
-        final var userPromptInfo = getUserPromptWithRagAugmentation(chatRequest);
-        final var promptWithRag = userPromptInfo.userPrompt();
-        final var estimatedTokens = tokenCountEstimator.estimate(promptWithRag);
-
-        log.info("Constructed prompt is '{}' characters", promptWithRag.length());
-        log.info("Constructed prompt is around '{}' tokens", estimatedTokens);
-
-        if (estimatedTokens >= contextWindow) {
-            log.warn("The number of tokens will exceed the context window of '{}'", contextWindow);
-        }
-
-        prompt.user(promptWithRag);
-
-        final var modelResponse = prompt
-            .call();
-
-       final var chatResponse = modelResponse.chatResponse();
-
-        final String thinking;
-        final String output;
-       if (nonNull(chatResponse)) {
-           final var promptTokens = chatResponse.getMetadata().getUsage().getPromptTokens();
-           final var completionTokens = chatResponse.getMetadata().getUsage().getCompletionTokens();
-           final var totalTokens = chatResponse.getMetadata().getUsage().getTotalTokens();
-
-           log.info("promptTokens: {}, completionTokens: {}, totalTokens: {}", promptTokens, completionTokens, totalTokens);
-
-           thinking = chatResponse.getResult().getMetadata().get("thinking");
-           output = chatResponse.getResult().getOutput().getText();
-
-           log.debug("======================");
-           log.debug("thinking: {}\n\n", thinking);
-           log.debug("output: {}", output);
-           log.debug("======================");
-       } else {
-           thinking = "";
-           output = "";
-       }
-
-        final List<Document> docs = nonNull(ragDocsRef.get()) ? ragDocsRef.get() : List.of();
-        log.info("found {} RAG documents", docs.size());
         return new ChatResponse(
             chatRequest.userPrompt(),
-            output,
-            thinking,
-            docs.stream().map(doc ->
-                new VectorSearchResult(doc.getText(), doc.getMetadata(), doc.getScore())
-            ).toList(),
+            outputBuilder.toString(),
+            thinkingBuilder.toString(),
+            ragDocs,
             llmModel,
             conversationId,
             startTime,
@@ -209,12 +147,9 @@ public class ConversationService {
     public Flux<ChatStreamingResponseItem> performConversationExchangeStreaming(
         final ChatRequest chatRequest
     ) {
-        final var startTime = new Date();
         final int conversationId = nonNull(chatRequest.conversationId())
             ? chatRequest.conversationId()
             : getNextConversationId();
-
-        log.info("processing /api/v1/chat/generic/stream at {}", startTime);
 
         final int topK = chatRequest.numberOfRagDocumentsToInclude() != null
             ? chatRequest.numberOfRagDocumentsToInclude()
@@ -275,7 +210,14 @@ public class ConversationService {
 
                 final String text = nonNull(thinking) && !thinking.isEmpty() ? thinking : output;
 
-                return new ChatStreamingResponseItem(llmModel, conversationId, itemType, text);
+                final var promptTokens = chatResponse.getMetadata().getUsage().getPromptTokens();
+                final var completionTokens = chatResponse.getMetadata().getUsage().getCompletionTokens();
+                final var totalTokens = chatResponse.getMetadata().getUsage().getTotalTokens();
+
+                log.info("conversationID: {} -> promptTokens: {}, completionTokens: {}, totalTokens: {}",
+                    conversationId, promptTokens, completionTokens, totalTokens);
+
+                return new ChatStreamingResponseItem(llmModel, conversationId, itemType, text, null);
             })
             .concatWith(Flux.defer(() -> {
                 log.debug("Concat documents to stream");
@@ -285,7 +227,8 @@ public class ConversationService {
                         llmModel,
                         conversationId,
                         RAG_DOCUMENT,
-                        doc.getText()
+                        doc.getText(),
+                        new VectorSearchResult(doc.getText(), doc.getMetadata(), doc.getScore())
                     ));
             }));
     }
@@ -322,8 +265,6 @@ public class ConversationService {
                     .enableThinking()
                     .build()
             )).map((chatResponse) -> {
-
-
                 // will always be null due to this issue https://github.com/spring-projects/spring-ai/issues/4866
                 // there is a fix, watch for it to make it into a release
                 final String thinking = chatResponse.getResult().getMetadata().get("thinking");

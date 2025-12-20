@@ -79,6 +79,14 @@ curl http://192.168.1.105:11434/api/generate -d '
 }'  | jq .
 ```
 
+## Verbose logging
+
+In `application.properties` you can set `spring.ai.chat.logging-advisor.enabled=true` to enable the logging advisor
+This will drump out the prompt inluding injected RAG docs. It can be quite verbose even for DEBUG level logs.
+
+To see the full output, you will also need to have debugging enabled. You can also do this in `application.properites`
+with logging.level.com.wininger.spring_ai_demo=DEBUG
+
 ## Accessing Swagger Documentation
 
 • Swagger UI: http://localhost:8080/swagger-ui.html
