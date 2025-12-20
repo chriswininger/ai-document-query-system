@@ -6,7 +6,7 @@ export default function StreamingChat() {
 
   const handleTestClick = () => {
     streamChat({
-      userPrompt: 'Hello, this is a test prompt',
+      userPrompt: 'What do you know about Jack Aubrey and Steven Maturin.',
       documentSourceIds:[10]
     });
   };

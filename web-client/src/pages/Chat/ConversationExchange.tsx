@@ -3,7 +3,8 @@ import {useState} from "react";
 import SearchResultsItem from "../../components/SearchResultItem/SearchResultItem.tsx";
 
 export function ConversationExchange({ exchange }: { exchange: ChatResponse}) {
-  const [showMore, setShowMore] = useState(false);
+  const [showMoreRAG, setShowMoreRAG] = useState(false);
+  const [showMoreThinking, setShowMoreThinking] = useState(false);
 
   const up = '🔼';
   const down = '🔽';
@@ -24,12 +25,12 @@ export function ConversationExchange({ exchange }: { exchange: ChatResponse}) {
           </pre>
 
           <div className="thinking-wrapper">
-            <button className="thinking-see-more" onClick={showMoreClicked}>
+            <button className="thinking-see-more" onClick={showMoreThinkingClicked}>
               <span className="thinking-see-more-text">See Thinking</span>
-              <span className="thinking-see-more-icon">{showMore ? down : up}</span>
+              <span className="thinking-see-more-icon">{showMoreThinking ? down : up}</span>
             </button>
 
-            {showMore && <div className="thinking-result-content">
+            {showMoreThinking && <div className="thinking-result-content">
               <p>
                 {exchange.thinking}
               </p>
@@ -37,10 +38,13 @@ export function ConversationExchange({ exchange }: { exchange: ChatResponse}) {
             }
           </div>
 
-           <div className="exchange-more">
-              <button className="exchange-see-more" onClick={showMoreClicked}>See Documents Used {showMore ? down : up}</button>
+           <div className="exchange-wrapper">
+           <button className="exchange-see-more" onClick={showMoreRAGClicked}>
+              <span className="exchange-see-more-text">See RAG Documents</span>
+              <span className="echange-see-more-icon">{showMoreRAG ? down : up}</span>
+            </button>
 
-             {showMore && (exchange.vectorSearchResults.map(vr => (
+             {showMoreRAG && (exchange.vectorSearchResults.map(vr => (
                <SearchResultsItem searchResult={vr} />
              )))}
            </div>
@@ -48,7 +52,11 @@ export function ConversationExchange({ exchange }: { exchange: ChatResponse}) {
     </div>
   </>;
 
-  function showMoreClicked() {
-    setShowMore(!showMore);
+  function showMoreRAGClicked() {
+    setShowMoreRAG(!showMoreRAG);
+  }
+
+  function showMoreThinkingClicked() {
+    setShowMoreThinking(!showMoreThinking);
   }
 }
