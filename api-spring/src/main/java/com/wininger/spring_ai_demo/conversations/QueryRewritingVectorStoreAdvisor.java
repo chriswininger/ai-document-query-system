@@ -1,21 +1,22 @@
 package com.wininger.spring_ai_demo.conversations;
 
 import com.wininger.spring_ai_demo.rag.QueryRewritingService;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClientRequest;
 import org.springframework.ai.chat.client.ChatClientResponse;
-import org.springframework.ai.chat.client.advisor.api.CallAdvisor;
-import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
-import org.springframework.ai.chat.client.advisor.api.StreamAdvisor;
-import org.springframework.ai.chat.client.advisor.api.StreamAdvisorChain;
+import org.springframework.ai.chat.client.advisor.api.*;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
-import reactor.core.publisher.Flux;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Custom advisor that performs vector store search with query rewriting.
@@ -34,8 +35,24 @@ import java.util.Map;
  *     .build();
  * }</pre>
  */
-public class QueryRewritingVectorStoreAdvisor implements CallAdvisor, StreamAdvisor {
+public class QueryRewritingVectorStoreAdvisor implements BaseAdvisor {
     private static final Logger log = LoggerFactory.getLogger(QueryRewritingVectorStoreAdvisor.class);
+
+    public static final String RETRIEVED_DOCUMENTS = "qa_retrieved_documents";
+
+    private static final PromptTemplate PROMPT_TEMPLATE = new PromptTemplate("""
+			{query}
+
+			Context information is below, surrounded by ---------------------
+
+			---------------------
+			{question_answer_context}
+			---------------------
+
+			Given the context and provided history information and not prior knowledge,
+			reply to the user comment. If the answer is not in the context, inform
+			the user that you can't answer the question.
+			""");
 
     private final VectorStore vectorStore;
     private final int topK;
@@ -116,111 +133,73 @@ public class QueryRewritingVectorStoreAdvisor implements CallAdvisor, StreamAdvi
     }
 
     @Override
-    public ChatClientResponse adviseCall(ChatClientRequest request, CallAdvisorChain chain) {
-        log.debug("QueryRewritingVectorStoreAdvisor: processing request");
+    public ChatClientRequest before(
+        final @NonNull ChatClientRequest chatClientRequest,
+        final @NonNull AdvisorChain advisorChain
+    ) {
+        // Get the rewritten query from context or extract from prompt
+        final String searchQuery = rewriteQuery(chatClientRequest.prompt().getUserMessage().getText());
 
-        // Get the rewritten query from context, or extract from prompt
-        String searchQuery = getSearchQuery(request);
+        final var documents = performVectorSearch(searchQuery);
 
-        if (searchQuery == null || searchQuery.trim().isEmpty()) {
-            log.debug("No search query found, proceeding without vector search");
-            return chain.nextCall(request);
-        }
+        // store the documents on the context
+        final Map<String, Object> context = new HashMap<>(chatClientRequest.context());
+        context.put(RETRIEVED_DOCUMENTS, documents);
 
-        log.debug("Using search query: '{}'", searchQuery);
+        final String documentContext = documents.stream()
+            .map(Document::getText)
+            .collect(Collectors.joining(System.lineSeparator()));
 
-        // Perform vector search
-        List<Document> documents = performVectorSearch(searchQuery);
+        // modify the user prompt to inject the documents using our temlate
+        final var userMessage = chatClientRequest.prompt().getUserMessage();
+        String augmentedUserText = PROMPT_TEMPLATE
+            .render(Map.of("query", userMessage.getText(), "question_answer_context", documentContext));
 
-        // Add documents to context (same key as QuestionAnswerAdvisor uses)
-        // Try to modify context directly if mutable, otherwise pass request as-is
-        // and let QuestionAnswerAdvisor handle it, or documents will be available via other means
-        try {
-            Map<String, Object> context = request.context();
-            if (context != null) {
-                context.put("qa_retrieved_documents", documents);
-            }
-        } catch (Exception e) {
-            log.warn("Could not modify context directly, documents may not be available", e);
-        }
-
-        log.info("Found {} documents for query", documents.size());
-
-        return chain.nextCall(request);
+        return chatClientRequest.mutate()
+            .prompt(chatClientRequest.prompt().augmentUserMessage(augmentedUserText))
+            .context(context)
+            .build();
     }
 
+    // add documents to response metadata at the end of the chain,this
+    // is another place we could hook our RAG docs int or maybe we could look
+    // for our missing thinking tokens here
     @Override
-    public Flux<ChatClientResponse> adviseStream(ChatClientRequest request, StreamAdvisorChain chain) {
-        log.debug("QueryRewritingVectorStoreAdvisor: processing streaming request");
-
-        // Get the rewritten query from context, or extract from prompt
-        String searchQuery = getSearchQuery(request);
-
-        if (searchQuery == null || searchQuery.trim().isEmpty()) {
-            log.debug("No search query found, proceeding without vector search");
-            return chain.nextStream(request);
+    public ChatClientResponse after(
+        @NonNull ChatClientResponse chatClientResponse,
+        @NonNull AdvisorChain advisorChain
+    ) {
+        ChatResponse.Builder chatResponseBuilder;
+        if (chatClientResponse.chatResponse() == null) {
+            chatResponseBuilder = ChatResponse.builder();
+        }
+        else {
+            chatResponseBuilder = ChatResponse.builder().from(chatClientResponse.chatResponse());
         }
 
-        log.debug("Using search query: '{}'", searchQuery);
+        chatResponseBuilder.metadata(RETRIEVED_DOCUMENTS, chatClientResponse.context().get(RETRIEVED_DOCUMENTS));
 
-        // Perform vector search
-        List<Document> documents = performVectorSearch(searchQuery);
-
-        // Add documents to context
-        try {
-            Map<String, Object> context = request.context();
-            if (context != null) {
-                context.put("qa_retrieved_documents", documents);
-            }
-        } catch (Exception e) {
-            log.warn("Could not modify context directly, documents may not be available", e);
-        }
-
-        log.info("Found {} documents for query", documents.size());
-
-        return chain.nextStream(request);
+        return ChatClientResponse.builder()
+            .chatResponse(chatResponseBuilder.build())
+            .context(chatClientResponse.context())
+            .build();
     }
 
-    /**
-     * Gets the search query - extracts from prompt and rewrites it if QueryRewritingService is available.
-     */
-    private String getSearchQuery(ChatClientRequest request) {
-        // Extract the original query from prompt messages (last user message)
-        String originalQuery = null;
-        try {
-            var messages = request.prompt().getInstructions();
-            if (messages != null && !messages.isEmpty()) {
-                // Get the last message which should be the user's question
-                var lastMessage = messages.get(messages.size() - 1);
-                if (lastMessage != null && lastMessage.getText() != null) {
-                    String content = lastMessage.getText();
-                    if (!content.trim().isEmpty()) {
-                        originalQuery = content;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.debug("Could not extract query from prompt messages", e);
-        }
-
-        if (originalQuery == null || originalQuery.trim().isEmpty()) {
-            return null;
-        }
-
+    private String rewriteQuery(final String originalQuery) {
         // Rewrite the query if QueryRewritingService is available
         if (queryRewritingService != null) {
             String rewrittenQuery = queryRewritingService.rewriteQuerySingle(originalQuery);
             log.info("Query rewriting: '{}' -> '{}'", originalQuery, rewrittenQuery);
             return rewrittenQuery;
+        } else {
+            log.warn("No queryRewritingService provided");
+            log.info("Query rewriting disabled using: '{}'", originalQuery);
         }
 
         // Fallback to original query if no rewriting service
         return originalQuery;
     }
 
-    /**
-     * Performs vector search with the given query.
-     */
     private List<Document> performVectorSearch(String query) {
         try {
             SearchRequest.Builder searchRequestBuilder = SearchRequest.builder()
