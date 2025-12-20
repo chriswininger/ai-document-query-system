@@ -107,7 +107,7 @@ Taken from Here https://docs.spring.io/spring-ai/reference/api/chat/ollama-chat.
 Flux<ChatResponse> stream = chatModel.stream(
     new Prompt(
         "Explain quantum entanglement",
-        OllamaChatOptions.builder()
+        OllamaChatOptions.queryRewritingVectorStoreAdvisorBuilder()
             .model("qwen3")
             .enableThinking()
             .build()

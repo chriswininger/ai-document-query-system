@@ -160,14 +160,14 @@ public class ConversationService {
 
         // if the user has enabled RAG
         if (topK > 0 && !chatRequest.documentSourceIds().isEmpty()) {
-            // Rewrite the user query for better vector search matching
-            String originalUserPrompt = chatRequest.userPrompt();
-            String rewrittenQuery = queryRewritingService.rewriteQuerySingle(originalUserPrompt);
-            log.info("Query rewriting (streaming): '{}' -> '{}'", originalUserPrompt, rewrittenQuery);
-
             String filterExpression = buildFilterExpression(chatRequest.documentSourceIds());
-            prompt.advisors(new QueryRewritingVectorStoreAdvisor(vectorStore, topK, filterExpression, rewrittenQuery));
+            prompt.advisors(QueryRewritingVectorStoreAdvisor.builder(vectorStore)
+                .queryRewritingService(queryRewritingService)
+                .topK(topK)
+                .filterExpression(filterExpression)
+                .build());
 
+            // this is just used so that we can track the rag documents returned
             prompt.advisors(new RagDocumentCaptureAdvisor(ragDocsRef)); // TODO: I think I can actually get these from modelResponse object
         }
 
