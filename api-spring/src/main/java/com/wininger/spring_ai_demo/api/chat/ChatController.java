@@ -40,17 +40,4 @@ public class ChatController {
             .contentType(MediaType.TEXT_EVENT_STREAM)
             .body(this.conversationService.performConversationExchangeStreaming(chatRequest));
     }
-
-    @PostMapping(path = "/generic/test", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ChatResponse chatTest(@RequestBody final ChatRequest chatRequest) {
-        return this.conversationService.performTestChat(chatRequest.userPrompt());
-    }
-
-
-    @PostMapping(path = "/generic/test/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Flux<ChatResponse>> chatStreamingTest(@RequestBody final ChatRequest chatRequest) {
-        return ResponseEntity.ok()
-            .contentType(MediaType.TEXT_EVENT_STREAM)
-            .body(this.conversationService.performTestChatStream(chatRequest.userPrompt()));
-    }
 }

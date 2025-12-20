@@ -5,7 +5,6 @@ import com.wininger.spring_ai_demo.api.chat.ChatResponse;
 import com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItem;
 import com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType;
 import com.wininger.spring_ai_demo.api.rag.VectorSearchResult;
-import com.wininger.spring_ai_demo.api.rag.VectorSearchService;
 import com.wininger.spring_ai_demo.logging.LoggingAdvisor;
 import com.wininger.spring_ai_demo.rag.QueryRewritingService;
 import org.slf4j.Logger;
@@ -17,10 +16,8 @@ import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvi
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
-import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.ollama.OllamaChatModel;
-import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.ai.tokenizer.TokenCountEstimator;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -214,12 +211,18 @@ public class ConversationService {
                 final var completionTokens = chatResponse.getMetadata().getUsage().getCompletionTokens();
                 final var totalTokens = chatResponse.getMetadata().getUsage().getTotalTokens();
 
-                log.info("conversationID: {} -> promptTokens: {}, completionTokens: {}, totalTokens: {}",
-                    conversationId, promptTokens, completionTokens, totalTokens);
+                // these will be 0 as we stream, but will be populated when the final item comes in
+                if (totalTokens > 0) {
+                    log.info("conversationID: {} -> promptTokens: {}, completionTokens: {}, totalTokens: {}",
+                        conversationId, promptTokens, completionTokens, totalTokens);
+                }
 
                 return new ChatStreamingResponseItem(llmModel, conversationId, itemType, text, null);
             })
             .concatWith(Flux.defer(() -> {
+                // possibly we could get this from the chatResponse map qa_retrieved_documents and avoid the need
+                // for using the advisor to capture them, but this doesn't seem to be populated in my streaming version,
+                // so perhaps we'll keep using the advisor to populate them for now
                 log.debug("Concat documents to stream");
                 final List<Document> docs = nonNull(ragDocsRef.get()) ? ragDocsRef.get() : List.of();
                 return Flux.fromIterable(docs)
@@ -231,59 +234,6 @@ public class ConversationService {
                         new VectorSearchResult(doc.getText(), doc.getMetadata(), doc.getScore())
                     ));
             }));
-    }
-
-    public ChatResponse performTestChat(final String userPrompt) {
-        var response = this.ollamaChatModel.call(
-            new Prompt(
-                userPrompt,
-                OllamaChatOptions.builder()
-                    .enableThinking()
-                    .build()
-            ));
-
-        final String thinking = response.getResult().getMetadata().get("thinking");
-        String answer = response.getResult().getOutput().getText();
-
-        return new ChatResponse(
-            userPrompt,
-            answer,
-            thinking,
-            new ArrayList<>(),
-            llmModel,
-            0,
-            new Date(),
-            new Date()
-        );
-    }
-
-    public Flux<ChatResponse> performTestChatStream(final String userPrompt) {
-        return this.ollamaChatModel.stream(
-            new Prompt(
-                userPrompt,
-                OllamaChatOptions.builder()
-                    .enableThinking()
-                    .build()
-            )).map((chatResponse) -> {
-                // will always be null due to this issue https://github.com/spring-projects/spring-ai/issues/4866
-                // there is a fix, watch for it to make it into a release
-                final String thinking = chatResponse.getResult().getMetadata().get("thinking");
-                if (thinking != null && !thinking.isEmpty()) {
-                    System.out.println("!!! THINKING");
-                    System.out.println("[Thinking] " + thinking);
-                }
-
-                String answer = chatResponse.getResult().getOutput().getText();
-                    return new ChatResponse(
-                        userPrompt,
-                        answer,
-                        thinking,
-                        new ArrayList<>(),
-                        llmModel,
-                        0,
-                        new Date(),
-                        new Date());
-                });
     }
 
     private PromptWithSearchResults getUserPromptWithRagAugmentation(final ChatRequest chatRequest) {
