@@ -7,6 +7,7 @@ import com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType;
 import com.wininger.spring_ai_demo.api.rag.VectorSearchResult;
 import com.wininger.spring_ai_demo.api.rag.VectorSearchService;
 import com.wininger.spring_ai_demo.logging.LoggingAdvisor;
+import com.wininger.spring_ai_demo.rag.QueryRewritingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -62,14 +63,18 @@ public class ConversationService {
 
     private final OllamaChatModel ollamaChatModel;
 
+    private final QueryRewritingService queryRewritingService;
+
     public ConversationService(
         final ChatClient.Builder chatClientBuilder,
         final VectorStore vectorStore,
         final VectorSearchService vectorSearchService,
         final TokenCountEstimator tokenCountEstimator,
-        final OllamaChatModel ollamaChatModel
+        final OllamaChatModel ollamaChatModel,
+        final QueryRewritingService queryRewritingService
     ) {
         this.ollamaChatModel = ollamaChatModel;
+        this.queryRewritingService = queryRewritingService;
 
         // ==================================
         InMemoryChatMemoryRepository chatMemoryRepository = new InMemoryChatMemoryRepository();
@@ -88,9 +93,7 @@ public class ConversationService {
                 new LoggingAdvisor()
             )
             .defaultSystem("""
-                You are a helpful assistant. You are confident in your answers. Your answers are short and to the point.
-                If you do not know something you simply say so. Please do not explain your thinking, just answer the
-                question.
+                You are a helpful assistant. If you do not know something you simply say so.
                 """)
             .build();
 
@@ -123,12 +126,25 @@ public class ConversationService {
             .prompt()
             .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId));
 
+        // if we the user is requestiong the use of rag
+        if (topK > 0 && !chatRequest.documentSourceIds().isEmpty()) {
+            // Rewrite the user query for better vector search matching
+            String originalUserPrompt = chatRequest.userPrompt();
+            String rewrittenQuery = queryRewritingService.rewriteQuerySingle(originalUserPrompt);
+            log.info("Query rewriting: '{}' -> '{}'", originalUserPrompt, rewrittenQuery);
 
-            if (topK > 0 && !chatRequest.documentSourceIds().isEmpty()) {
-                prompt.advisors(questionAnswerAdvisor(vectorStore, topK, chatRequest.documentSourceIds()));
-            }
+            // Use custom advisor with query rewriting
+            String filterExpression = buildFilterExpression(chatRequest.documentSourceIds());
+            prompt.advisors(new QueryRewritingVectorStoreAdvisor(vectorStore, topK, filterExpression, rewrittenQuery));
 
+            // Option 2: Use QuestionAnswerAdvisor (it will extract from the rewritten user prompt)
+            // We'll modify the user prompt to use the rewritten version for search
+            // But keep original for display - this is handled below
+
+            // capture the rag documents the pipeline retrieves (we may be able to get his from chatResponse now)
             prompt.advisors(new RagDocumentCaptureAdvisor(ragDocsRef));
+        }
+
 
         if (nonNull(chatRequest.systemPrompt())) {
           prompt.system(chatRequest.systemPrompt());
@@ -208,9 +224,20 @@ public class ConversationService {
         final AtomicReference<List<Document>> ragDocsRef = new AtomicReference<>();
         final ChatClientRequestSpec prompt = chatClient
             .prompt()
-            .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId))
-            .advisors(questionAnswerAdvisor(vectorStore, topK, chatRequest.documentSourceIds()))
-            .advisors(new RagDocumentCaptureAdvisor(ragDocsRef)); // TODO: I think I can actually get these from modelResponse object
+            .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId));
+
+        // if the user has enabled RAG
+        if (topK > 0 && !chatRequest.documentSourceIds().isEmpty()) {
+            // Rewrite the user query for better vector search matching
+            String originalUserPrompt = chatRequest.userPrompt();
+            String rewrittenQuery = queryRewritingService.rewriteQuerySingle(originalUserPrompt);
+            log.info("Query rewriting (streaming): '{}' -> '{}'", originalUserPrompt, rewrittenQuery);
+
+            String filterExpression = buildFilterExpression(chatRequest.documentSourceIds());
+            prompt.advisors(new QueryRewritingVectorStoreAdvisor(vectorStore, topK, filterExpression, rewrittenQuery));
+
+            prompt.advisors(new RagDocumentCaptureAdvisor(ragDocsRef)); // TODO: I think I can actually get these from modelResponse object
+        }
 
         if (nonNull(chatRequest.systemPrompt())) {
             prompt.system(chatRequest.systemPrompt());
@@ -327,9 +354,7 @@ public class ConversationService {
         final int topK,
         List<Integer> documentSourceIds
     ) {
-        final String filterExpression = documentSourceIds.stream()
-            .map("source_id == %s"::formatted)
-            .collect(Collectors.joining(" || "));
+        final String filterExpression = buildFilterExpression(documentSourceIds);
 
         log.debug("filter expression: '{}'", filterExpression);
         log.debug("topK: '{}'", topK);
@@ -341,6 +366,12 @@ public class ConversationService {
                     .filterExpression((filterExpression))
                     .build())
             .build();
+    }
+
+    private String buildFilterExpression(List<Integer> documentSourceIds) {
+        return documentSourceIds.stream()
+            .map("source_id == %s"::formatted)
+            .collect(Collectors.joining(" || "));
     }
 }
 
