@@ -4,12 +4,23 @@ export const vectorApi = createApi({
   reducerPath: 'vectorApi',
   baseQuery: fetchBaseQuery({baseUrl: '/api/v1/rag/vectors'}),
   endpoints: (build) => ({
-    performSearch:  build.mutation<VectorSearchResult[], VectorSearchRequest>({
-      query: (request) => ({
-        url: '/search',
-        method: 'POST',
-        body: request
-      })
+    performSearch:  build.mutation<VectorSearchResponse, VectorSearchRequest>({
+      query: (request) => {
+        const params = new URLSearchParams();
+        if (request.useRAGRewrite !== undefined) {
+          params.append('useRAGRewrite', String(request.useRAGRewrite));
+        }
+        const queryString = params.toString();
+        return {
+          url: `/search${queryString ? `?${queryString}` : ''}`,
+          method: 'POST',
+          body: {
+            query: request.query,
+            numMatches: request.numMatches,
+            documentSourceIds: request.documentSourceIds
+          }
+        }
+      }
     })
   })
 })
@@ -17,13 +28,19 @@ export const vectorApi = createApi({
 export interface VectorSearchRequest {
   query: string,
   numMatches: number,
-  documentSourceIds: number[]
+  documentSourceIds: number[],
+  useRAGRewrite?: boolean
 }
 
 export interface VectorSearchResult {
   text: string,
   metadata: Map<string, unknown>,
   score: null
+}
+
+export interface VectorSearchResponse {
+  rewrittenQuery: string,
+  searchResults: VectorSearchResult[]
 }
 
 export const { usePerformSearchMutation } = vectorApi;

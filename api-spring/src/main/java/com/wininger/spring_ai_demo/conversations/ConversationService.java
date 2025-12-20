@@ -5,6 +5,7 @@ import com.wininger.spring_ai_demo.api.chat.ChatResponse;
 import com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItem;
 import com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType;
 import com.wininger.spring_ai_demo.api.rag.VectorSearchResult;
+import com.wininger.spring_ai_demo.api.rag.VectorSearchService;
 import com.wininger.spring_ai_demo.logging.LoggingAdvisor;
 import com.wininger.spring_ai_demo.rag.QueryRewritingService;
 import org.slf4j.Logger;
@@ -54,6 +55,8 @@ public class ConversationService {
 
     private final VectorStore vectorStore;
 
+    private final VectorSearchService vectorSearchService;
+
     private final TokenCountEstimator tokenCountEstimator;
 
     private final OllamaChatModel ollamaChatModel;
@@ -63,6 +66,7 @@ public class ConversationService {
     public ConversationService(
         final ChatClient.Builder chatClientBuilder,
         final VectorStore vectorStore,
+        final VectorSearchService vectorSearchService,
         final TokenCountEstimator tokenCountEstimator,
         final OllamaChatModel ollamaChatModel,
         final QueryRewritingService queryRewritingService,
@@ -94,6 +98,7 @@ public class ConversationService {
 
         this.tokenCountEstimator = tokenCountEstimator;
         this.vectorStore = vectorStore;
+        this.vectorSearchService = vectorSearchService;
     }
 
     public final Integer getNextConversationId() {
@@ -160,11 +165,10 @@ public class ConversationService {
 
         // if the user has enabled RAG
         if (topK > 0 && !chatRequest.documentSourceIds().isEmpty()) {
-            String filterExpression = buildFilterExpression(chatRequest.documentSourceIds());
-            prompt.advisors(QueryRewritingVectorStoreAdvisor.builder(vectorStore)
+            prompt.advisors(QueryRewritingVectorStoreAdvisor.builder(vectorSearchService)
                 .queryRewritingService(queryRewritingService)
                 .topK(topK)
-                .filterExpression(filterExpression)
+                .documentSourceIds(chatRequest.documentSourceIds())
                 .build());
 
             // this is just used so that we can track the rag documents returned

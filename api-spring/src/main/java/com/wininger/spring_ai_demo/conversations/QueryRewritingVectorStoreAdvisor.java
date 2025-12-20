@@ -1,5 +1,7 @@
 package com.wininger.spring_ai_demo.conversations;
 
+import com.wininger.spring_ai_demo.api.rag.VectorSearchResult;
+import com.wininger.spring_ai_demo.api.rag.VectorSearchService;
 import com.wininger.spring_ai_demo.rag.QueryRewritingService;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
@@ -10,8 +12,6 @@ import org.springframework.ai.chat.client.advisor.api.*;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
 
 import java.util.HashMap;
 import java.util.List;
@@ -28,10 +28,10 @@ import java.util.stream.Collectors;
  *
  * Example usage:
  * <pre>{@code
- * QueryRewritingVectorStoreAdvisor.builder(vectorStore)
+ * QueryRewritingVectorStoreAdvisor.builder(vectorSearchService)
  *     .queryRewritingService(queryRewritingService)
  *     .topK(5)
- *     .filterExpression("source_id == 1")
+ *     .documentSourceIds(List.of(1, 2, 3))
  *     .build();
  * }</pre>
  */
@@ -54,39 +54,39 @@ public class QueryRewritingVectorStoreAdvisor implements BaseAdvisor {
 			the user that you can't answer the question.
 			""");
 
-    private final VectorStore vectorStore;
+    private final VectorSearchService vectorSearchService;
     private final int topK;
-    private final String filterExpression;
+    private final List<Integer> documentSourceIds;
     private final QueryRewritingService queryRewritingService;
 
     private QueryRewritingVectorStoreAdvisor(QueryRewritingVectorStoreAdvisorBuilder queryRewritingVectorStoreAdvisorBuilder) {
-        this.vectorStore = queryRewritingVectorStoreAdvisorBuilder.vectorStore;
+        this.vectorSearchService = queryRewritingVectorStoreAdvisorBuilder.vectorSearchService;
         this.topK = queryRewritingVectorStoreAdvisorBuilder.topK;
-        this.filterExpression = queryRewritingVectorStoreAdvisorBuilder.filterExpression;
+        this.documentSourceIds = queryRewritingVectorStoreAdvisorBuilder.documentSourceIds;
         this.queryRewritingService = queryRewritingVectorStoreAdvisorBuilder.queryRewritingService;
     }
 
     /**
      * Creates a new builder for QueryRewritingVectorStoreAdvisor.
      *
-     * @param vectorStore The vector store to search
+     * @param vectorSearchService The vector search service to use for searching
      * @return A new builder instance
      */
-    public static QueryRewritingVectorStoreAdvisorBuilder builder(VectorStore vectorStore) {
-        return new QueryRewritingVectorStoreAdvisorBuilder(vectorStore);
+    public static QueryRewritingVectorStoreAdvisorBuilder builder(VectorSearchService vectorSearchService) {
+        return new QueryRewritingVectorStoreAdvisorBuilder(vectorSearchService);
     }
 
     /**
      * Builder for QueryRewritingVectorStoreAdvisor.
      */
     public static class QueryRewritingVectorStoreAdvisorBuilder {
-        private final VectorStore vectorStore;
+        private final VectorSearchService vectorSearchService;
         private int topK = 5;
-        private String filterExpression;
+        private List<Integer> documentSourceIds;
         private QueryRewritingService queryRewritingService;
 
-        private QueryRewritingVectorStoreAdvisorBuilder(VectorStore vectorStore) {
-            this.vectorStore = vectorStore;
+        private QueryRewritingVectorStoreAdvisorBuilder(VectorSearchService vectorSearchService) {
+            this.vectorSearchService = vectorSearchService;
         }
 
         /**
@@ -112,13 +112,14 @@ public class QueryRewritingVectorStoreAdvisor implements BaseAdvisor {
         }
 
         /**
-         * Sets the filter expression for filtering results.
+         * Sets the document source IDs to filter results by.
+         * The filter expression will be built internally as "source_id == id1 || source_id == id2 || ..."
          *
-         * @param filterExpression The filter expression (e.g., "source_id == 1")
+         * @param documentSourceIds The list of document source IDs to filter by
          * @return This builder for method chaining
          */
-        public QueryRewritingVectorStoreAdvisorBuilder filterExpression(String filterExpression) {
-            this.filterExpression = filterExpression;
+        public QueryRewritingVectorStoreAdvisorBuilder documentSourceIds(List<Integer> documentSourceIds) {
+            this.documentSourceIds = documentSourceIds;
             return this;
         }
 
@@ -202,20 +203,19 @@ public class QueryRewritingVectorStoreAdvisor implements BaseAdvisor {
 
     private List<Document> performVectorSearch(String query) {
         try {
-            SearchRequest.Builder searchRequestBuilder = SearchRequest.builder()
-                    .query(query)
-                    .topK(topK);
+            log.debug("Performing vector search with query: '{}', topK: {}, documentSourceIds: {}",
+                    query, topK, documentSourceIds);
 
-            if (filterExpression != null && !filterExpression.trim().isEmpty()) {
-                searchRequestBuilder.filterExpression(filterExpression);
-            }
+            List<VectorSearchResult> searchResults = vectorSearchService.performSearch(
+                    query,
+                    topK,
+                    documentSourceIds != null ? documentSourceIds : List.of()
+            );
 
-            SearchRequest searchRequest = searchRequestBuilder.build();
-
-            log.debug("Performing vector search with query: '{}', topK: {}, filter: {}",
-                    query, topK, filterExpression);
-
-            return vectorStore.similaritySearch(searchRequest);
+            // Convert VectorSearchResult to Document
+            return searchResults.stream()
+                    .map(result -> new Document(result.text(), result.metadata()))
+                    .collect(Collectors.toList());
 
         } catch (Exception e) {
             log.error("Error performing vector search", e);

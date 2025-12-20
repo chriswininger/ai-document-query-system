@@ -11,6 +11,9 @@ const vectorSearchPageSlice = createSlice({
     numResultsUpdated: (state, action) => {
       state.numResults = action.payload;
     },
+    useRAGRewriteUpdated: (state, action) => {
+      state.useRAGRewrite = action.payload;
+    },
     documentSelected: (state, action) => {
       state.selectedDocuments = [
         ...state.selectedDocuments,
@@ -24,19 +27,21 @@ const vectorSearchPageSlice = createSlice({
   }
 })
 
-export const { queryUpdated, numResultsUpdated, documentSelected, documentUnSelected } =
+export const { queryUpdated, numResultsUpdated, useRAGRewriteUpdated, documentSelected, documentUnSelected } =
   vectorSearchPageSlice.actions;
 export default vectorSearchPageSlice.reducer;
 
 interface InitialState {
   selectedDocuments: DocumentImport [],
    query: string,
-   numResults: number
+   numResults: number,
+   useRAGRewrite: boolean
 }
 function getInitialState(): InitialState {
   return {
     selectedDocuments: [],
     query: "",
-    numResults: 10
+    numResults: 10,
+    useRAGRewrite: false
   }
 }
