@@ -1,11 +1,16 @@
 import { useState, useCallback } from 'react';
 import { ChatRequest } from './chatApi';
+import {VectorSearchResult} from "./vectorApi.tsx";
 
 export interface ChatStreamingResponseItem {
   model: string;
   conversationId: number;
-  itemType: 'CONTENT' | 'RAG_DOCUMENT' | 'THINKING';
+  itemType: 'CONTENT' | 'RAG_DOCUMENT' | 'THINKING' | 'META_DATA';
   output: string;
+  vectorSearchResult: VectorSearchResult;
+  totalTokensUsed: number | undefined;
+  completionTokensUsed: number | undefined;
+  promptTokensUsed: number | undefined;
 }
 
 export function useStreamingChat() {
@@ -13,10 +18,17 @@ export function useStreamingChat() {
   const [error, setError] = useState<any>(null);
   const [streamedData, setStreamedData] = useState<ChatStreamingResponseItem[]>([]);
 
-  const streamChat = useCallback(async (request: ChatRequest) => {
+  const streamChat = useCallback(async (
+    request: ChatRequest,
+    onComplete?: (data: ChatStreamingResponseItem[]) => void
+  ) => {
     setIsLoading(true);
     setError(null);
     setStreamedData([]);
+
+    // Track accumulated data for the callback
+    const accumulatedData: ChatStreamingResponseItem[] = [];
+    let streamError: any = null;
 
     try {
       const response = await fetch('/api/v1/chat/generic/stream', {
@@ -62,8 +74,8 @@ export function useStreamingChat() {
                 if (jsonStr) {
                   try {
                     const data: ChatStreamingResponseItem = JSON.parse(jsonStr);
-                    console.log('!!! data: ' + JSON.stringify(data, null, 4))
 
+                    accumulatedData.push(data);
                     setStreamedData(prev => [...prev, data]);
                   } catch (e) {
                     console.error('Failed to parse SSE data:', e, 'Raw:', jsonStr);
@@ -84,6 +96,7 @@ export function useStreamingChat() {
             if (jsonStr) {
               try {
                 const data: ChatStreamingResponseItem = JSON.parse(jsonStr);
+                accumulatedData.push(data);
                 setStreamedData(prev => [...prev, data]);
               } catch (e) {
                 console.error('Failed to parse final SSE data:', e, 'Raw:', jsonStr);
@@ -94,9 +107,14 @@ export function useStreamingChat() {
       }
     } catch (err) {
       console.error('Streaming error:', err);
+      streamError = err;
       setError(err);
     } finally {
       setIsLoading(false);
+      // Call onComplete callback if stream completed successfully (no error)
+      if (!streamError && onComplete) {
+        onComplete(accumulatedData);
+      }
     }
   }, []);
 

@@ -29,7 +29,7 @@ export interface ChatResponse {
   thinking: string;
   vectorSearchResults: VectorSearchResult[];
   model: string;
-  conversationId: number;
+  conversationId: number | undefined;
   requestTimeStartTime: Date;
   requestEndTime: Date;
 }

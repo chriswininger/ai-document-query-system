@@ -10,5 +10,8 @@ public record ChatStreamingResponseItem(
     int conversationId,
     ChatStreamingResponseItemType itemType,
     String output,
-    VectorSearchResult vectorSearchResult // only applies to RAG_DOCUMENT, otherwise null
+    VectorSearchResult vectorSearchResult, // only applies to RAG_DOCUMENT, otherwise null
+    Integer totalTokensUsed, // only applies to META_DATA, otherwise null
+    Integer completionTokensUsed, // only applies to META_DATA, otherwise null
+    Integer promptTokensUsed // only applies to META_DATA, otherwise null
 ) {}

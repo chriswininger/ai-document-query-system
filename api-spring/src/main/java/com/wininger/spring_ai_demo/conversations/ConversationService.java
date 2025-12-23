@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType.CONTENT;
+import static com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType.META_DATA;
 import static com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType.RAG_DOCUMENT;
 import static com.wininger.spring_ai_demo.api.chat.ChatStreamingResponseItemType.THINKING;
 import static java.util.Objects.nonNull;
@@ -46,7 +47,7 @@ public class ConversationService {
     @Value("${spring.ai.ollama.chat.options.model}")
     private String llmModel;
 
-    @Value("${spring.ai.ollama.chat.options.num-ctx}")
+    @Value("${spring.ai.ollama.chat.options.num-ctx:2048}")
     private int contextWindow;
 
     private final Logger log = LoggerFactory.getLogger(ConversationService.class);
@@ -194,6 +195,10 @@ public class ConversationService {
 
         prompt.user(promptWithRag);
 
+        final AtomicReference<Integer> totalTokensUsedRef = new AtomicReference<>();
+        final AtomicReference<Integer> completionTokensRef = new AtomicReference<>();
+        final AtomicReference<Integer> promptTokensRef = new AtomicReference<>();
+
         return prompt
             .stream()
             .chatResponse()
@@ -221,9 +226,13 @@ public class ConversationService {
                 if (totalTokens > 0) {
                     log.info("conversationID: {} -> promptTokens: {}, completionTokens: {}, totalTokens: {}",
                         conversationId, promptTokens, completionTokens, totalTokens);
+
+                    promptTokensRef.set(promptTokens);
+                    completionTokensRef.set(completionTokens);
+                    totalTokensUsedRef.set(totalTokens);
                 }
 
-                return new ChatStreamingResponseItem(llmModel, conversationId, itemType, text, null);
+                return new ChatStreamingResponseItem(llmModel, conversationId, itemType, text, null, null, null, null);
             })
             .concatWith(Flux.defer(() -> {
                 // possibly we could get this from the chatResponse map qa_retrieved_documents and avoid the need
@@ -237,8 +246,31 @@ public class ConversationService {
                         conversationId,
                         RAG_DOCUMENT,
                         doc.getText(),
-                        new VectorSearchResult(doc.getText(), doc.getMetadata(), doc.getScore())
+                        new VectorSearchResult(doc.getText(), doc.getMetadata(), doc.getScore()),
+                        null,
+                        null,
+                        null
                     ));
+            }))
+            .concatWith(Flux.defer(() -> {
+                log.debug("Concat metadata to stream");
+                final Integer totalTokens = totalTokensUsedRef.get();
+                final Integer completionTokens = completionTokensRef.get();
+                final Integer promptTokens = promptTokensRef.get();
+                
+                if (nonNull(totalTokens) || nonNull(completionTokens) || nonNull(promptTokens)) {
+                    return Flux.just(new ChatStreamingResponseItem(
+                        llmModel,
+                        conversationId,
+                        ChatStreamingResponseItemType.META_DATA,
+                        null,
+                        null,
+                        totalTokens,
+                        completionTokens,
+                        promptTokens
+                    ));
+                }
+                return Flux.empty();
             }));
     }
 

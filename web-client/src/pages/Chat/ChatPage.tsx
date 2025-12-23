@@ -16,6 +16,13 @@ import {usePerformPromptMutation} from "../../api/chatApi.tsx";
 import {ConversationExchange} from "./ConversationExchange.tsx";
 import DocumentList from "../../components/DocumentList/DocumentList.tsx";
 import {DocumentImport} from "../../api/apiBase.tsx";
+import {
+  useConversationId,
+  useNumberOfRagDocumentsToInclude,
+  useSelectedDocuments,
+  useSystemPrompt,
+  useUserPrompt
+} from "../../api/selectors.tsx";
 
 export default function ChatPage() {
   const conversation = useConversation();
@@ -134,9 +141,4 @@ export default function ChatPage() {
   }
 }
 
-const useUserPrompt = () => useSelector((state: RootState) => state.chatPage.userPrompt);
-const useSystemPrompt = () => useSelector((state: RootState) => state.chatPage.systemPrompt);
-const useConversationId = () => useSelector((state: RootState) => state.chatPage.conversationId);
 const useConversation = () => useSelector((state: RootState) => state.chatPage.conversation);
-const useSelectedDocuments = () => useSelector((state: RootState) => state.chatPage.selectedDocuments);
-const useNumberOfRagDocumentsToInclude = () => useSelector((state: RootState) => state.chatPage.numberOfRagDocumentsToInclude);
