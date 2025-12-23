@@ -1,4 +1,4 @@
-package com.wininger.spring_ai_demo.conversations;
+package com.wininger.spring_ai_demo.rag;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

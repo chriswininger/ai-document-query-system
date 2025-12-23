@@ -116,7 +116,7 @@ public class QueryRewritingService {
             
             Question: %s
             
-            Return ONLY the rewritten query, nothing else. Keep it concise (under 15 words).
+            Return ONLY the rewritten query, nothing else.
             """.formatted(originalQuery);
 
         try {

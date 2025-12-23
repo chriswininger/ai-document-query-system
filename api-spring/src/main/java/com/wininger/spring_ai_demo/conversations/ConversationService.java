@@ -8,6 +8,8 @@ import com.wininger.spring_ai_demo.api.rag.VectorSearchResult;
 import com.wininger.spring_ai_demo.api.rag.VectorSearchService;
 import com.wininger.spring_ai_demo.logging.LoggingAdvisor;
 import com.wininger.spring_ai_demo.rag.QueryRewritingService;
+import com.wininger.spring_ai_demo.rag.QueryRewritingVectorStoreAdvisor;
+import com.wininger.spring_ai_demo.rag.RagDocumentCaptureAdvisor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;

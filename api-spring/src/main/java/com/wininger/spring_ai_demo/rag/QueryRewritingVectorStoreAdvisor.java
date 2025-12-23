@@ -1,8 +1,7 @@
-package com.wininger.spring_ai_demo.conversations;
+package com.wininger.spring_ai_demo.rag;
 
 import com.wininger.spring_ai_demo.api.rag.VectorSearchResult;
 import com.wininger.spring_ai_demo.api.rag.VectorSearchService;
-import com.wininger.spring_ai_demo.rag.QueryRewritingService;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
