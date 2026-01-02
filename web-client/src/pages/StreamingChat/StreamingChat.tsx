@@ -18,8 +18,7 @@ import {
   useUserPrompt
 } from "../../api/selectors.tsx";
 import {useState} from "react";
-import {ChatResponse} from "../../api/chatApi.tsx";
-import {ConversationExchange} from "../Chat/ConversationExchange.tsx";
+import {StreamingPastConversationExchange, FinalResponse} from "./StreamingPastConversationExchange.tsx";
 
 export default function StreamingChat() {
   const { streamChat, isLoading, error, streamedData } = useStreamingChat();
@@ -35,14 +34,14 @@ export default function StreamingChat() {
 
 
   // TODO: Move to Redux
-  const [pastResponses, setPastResponses] = useState<ChatResponse []>([]);
+  const [pastResponses, setPastResponses] = useState<FinalResponse []>([]);
   const [streamingConversationId, setStreamingConversationId] = useState<number | undefined>(undefined);
   const [metaDataFromLastStream, setMetaDataFromLastStream] = useState<FinalMetadata | undefined>();
   const [streamStartTime, setStreamStartTime] = useState<Date | undefined>()
 
   if (metaDataFromLastStream) {
     // TODO: Display this somewhere
-    console.log('metadata: ', metaDataFromLastStream)
+    console.log('!!! metadata: ', metaDataFromLastStream)
   }
 
   return (
@@ -69,7 +68,7 @@ export default function StreamingChat() {
           onChange={(e) => dispatch(numberOfRagDocumentsToIncludeUpdated(e.target.value))}
         />
 
-        {pastResponses.map(resp => <ConversationExchange exchange={resp} />)}
+        {pastResponses.map(resp => <StreamingPastConversationExchange exchange={resp} />)}
 
         {/*TODO separate this userPrompt from the current user prompt*/}
         {/* In progress Streaming Response */}
@@ -149,7 +148,8 @@ export default function StreamingChat() {
         completionTokensUsed: metadata.completionTokensUsed,
         promptTokensUsed: metadata.promptTokensUsed,
         totalTokensUsed: metadata.totalTokensUsed,
-        model: metadata.model
+        model: metadata.model,
+        queryRewrite: metadata.queryRewrite
       }
     } else {
       return  undefined;
@@ -182,9 +182,10 @@ export default function StreamingChat() {
         : undefined;
 
       setStreamingConversationId(conversationId);
-      setMetaDataFromLastStream(getMetadata(completedData));
+      const metadata = getMetadata(completedData);
+      setMetaDataFromLastStream(metadata);
 
-      const response: ChatResponse = {
+      const response: FinalResponse = {
         prompt: userPrompt,
         response: getAnswer(completedData),
         thinking: getThinking(completedData),
@@ -193,6 +194,10 @@ export default function StreamingChat() {
         model: getModel(completedData),
         requestTimeStartTime: streamStartTime || new Date(),
         requestEndTime: new Date(),
+        queryRewrite: metadata?.queryRewrite,
+        completionTokensUsed: metadata?.completionTokensUsed,
+        promptTokensUsed: metadata?.promptTokensUsed,
+        totalTokensUsed: metadata?.totalTokensUsed,
       };
 
       setPastResponses(prev => [...prev, response]);
@@ -248,4 +253,5 @@ interface FinalMetadata {
     promptTokensUsed: number | undefined;
     totalTokensUsed: number | undefined;
     model: string | undefined;
+    queryRewrite: string | undefined;
 }

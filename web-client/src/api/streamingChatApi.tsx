@@ -11,6 +11,7 @@ export interface ChatStreamingResponseItem {
   totalTokensUsed: number | undefined;
   completionTokensUsed: number | undefined;
   promptTokensUsed: number | undefined;
+  queryRewrite: string | undefined;
 }
 
 export function useStreamingChat() {

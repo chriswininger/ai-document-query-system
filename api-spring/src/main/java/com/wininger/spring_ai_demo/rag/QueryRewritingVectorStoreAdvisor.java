@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClientRequest;
 import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.client.advisor.api.*;
+import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
@@ -25,6 +26,8 @@ import java.util.stream.Collectors;
  * The QueryRewritingService is used to rewrite the user's query before performing
  * the vector search. If not provided, it falls back to using the original query.
  *
+ * This code was based on org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor
+ *
  * Example usage:
  * <pre>{@code
  * QueryRewritingVectorStoreAdvisor.builder(vectorSearchService)
@@ -38,6 +41,7 @@ public class QueryRewritingVectorStoreAdvisor implements BaseAdvisor {
     private static final Logger log = LoggerFactory.getLogger(QueryRewritingVectorStoreAdvisor.class);
 
     public static final String RETRIEVED_DOCUMENTS = "qa_retrieved_documents";
+    public static final String QUERY_REWRITE = "qa_query_rewrite";
 
     private static final PromptTemplate PROMPT_TEMPLATE = new PromptTemplate("""
 			{query}
@@ -142,9 +146,10 @@ public class QueryRewritingVectorStoreAdvisor implements BaseAdvisor {
 
         final var documents = performVectorSearch(searchQuery);
 
-        // store the documents on the context
+        // store the documents and rewritten query on the context
         final Map<String, Object> context = new HashMap<>(chatClientRequest.context());
         context.put(RETRIEVED_DOCUMENTS, documents);
+        context.put(QUERY_REWRITE, searchQuery);
 
         final String documentContext = documents.stream()
             .map(Document::getText)

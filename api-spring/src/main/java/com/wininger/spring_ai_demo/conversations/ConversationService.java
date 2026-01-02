@@ -96,6 +96,9 @@ public class ConversationService {
             )
             .defaultSystem("""
                 You are a helpful assistant. If you do not know something you simply say so.
+                
+                Answer the question that follows:
+
                 """)
             .build();
 
@@ -162,6 +165,7 @@ public class ConversationService {
 
         // Track the list of rag documents returned by the pipeline so that we can stream them to the client
         final AtomicReference<List<Document>> ragDocsRef = new AtomicReference<>();
+        final AtomicReference<String> queryRewriteRef = new AtomicReference<>();
         final ChatClientRequestSpec prompt = chatClient
             .prompt()
             .advisors(advisor -> advisor.param("chat_memory_conversation_id", conversationId));
@@ -175,7 +179,7 @@ public class ConversationService {
                 .build());
 
             // this is just used so that we can track the rag documents returned
-            prompt.advisors(new RagDocumentCaptureAdvisor(ragDocsRef)); // TODO: I think I can actually get these from modelResponse object
+            prompt.advisors(new RagDocumentCaptureAdvisor(ragDocsRef, queryRewriteRef)); // TODO: I think I can actually get these from modelResponse object
         }
 
         if (nonNull(chatRequest.systemPrompt())) {
@@ -232,7 +236,7 @@ public class ConversationService {
                     totalTokensUsedRef.set(totalTokens);
                 }
 
-                return new ChatStreamingResponseItem(llmModel, conversationId, itemType, text, null, null, null, null);
+                return new ChatStreamingResponseItem(llmModel, conversationId, itemType, text, null, null, null, null, null);
             })
             .concatWith(Flux.defer(() -> {
                 // possibly we could get this from the chatResponse map qa_retrieved_documents and avoid the need
@@ -249,6 +253,7 @@ public class ConversationService {
                         new VectorSearchResult(doc.getText(), doc.getMetadata(), doc.getScore()),
                         null,
                         null,
+                        null,
                         null
                     ));
             }))
@@ -257,7 +262,8 @@ public class ConversationService {
                 final Integer totalTokens = totalTokensUsedRef.get();
                 final Integer completionTokens = completionTokensRef.get();
                 final Integer promptTokens = promptTokensRef.get();
-                
+                final String queryRewrite = queryRewriteRef.get();
+
                 if (nonNull(totalTokens) || nonNull(completionTokens) || nonNull(promptTokens)) {
                     return Flux.just(new ChatStreamingResponseItem(
                         llmModel,
@@ -267,7 +273,8 @@ public class ConversationService {
                         null,
                         totalTokens,
                         completionTokens,
-                        promptTokens
+                        promptTokens,
+                        queryRewrite
                     ));
                 }
                 return Flux.empty();

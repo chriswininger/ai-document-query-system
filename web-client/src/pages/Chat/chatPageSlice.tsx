@@ -50,7 +50,10 @@ function getInitialState(): ChatPageState {
 }
 
 export function getDefaultSystemPrompt() {
-  return `You are a helpful assistant. If you do not know something you simply say so.`;
+  return `You are a helpful assistant. If you do not know something you simply say so.
+
+Answer the question that follows:
+`;
 }
 
 export const {

@@ -15,9 +15,9 @@ import reactor.core.publisher.Flux;
 @Component
 public class LoggingAdvisor implements CallAdvisor, StreamAdvisor {
   private static final Logger logger = LoggerFactory.getLogger(LoggingAdvisor.class);
-  
+
   private final boolean enabled;
-  
+
   public LoggingAdvisor(
       @Value("${spring.ai.chat.logging-advisor.enabled:false}") boolean enabled
   ) {
@@ -29,7 +29,7 @@ public class LoggingAdvisor implements CallAdvisor, StreamAdvisor {
     if (!enabled) {
       return chain.nextCall(request);
     }
-    
+
     logger.info("""
 
       Request -- prompt:
@@ -74,12 +74,16 @@ public class LoggingAdvisor implements CallAdvisor, StreamAdvisor {
     if (!enabled) {
       return chain.nextStream(request);
     }
-    
-    logger.debug("BEFORE: {}", request);
+
+    logger.debug("""
+FUll PROMPT:
+========================
+{}
+========================
+        """, request.prompt().getContents());
 
     Flux<ChatClientResponse> responses = chain.nextStream(request);
-
-    return responses.doOnNext(response -> logger.debug("AFTER: {}", response));
+    return responses.doOnNext(response -> {});
   }
 
   @Override

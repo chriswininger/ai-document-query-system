@@ -13,5 +13,6 @@ public record ChatStreamingResponseItem(
     VectorSearchResult vectorSearchResult, // only applies to RAG_DOCUMENT, otherwise null
     Integer totalTokensUsed, // only applies to META_DATA, otherwise null
     Integer completionTokensUsed, // only applies to META_DATA, otherwise null
-    Integer promptTokensUsed // only applies to META_DATA, otherwise null
+    Integer promptTokensUsed, // only applies to META_DATA, otherwise null
+    String queryRewrite // only applies to META_DATA
 ) {}

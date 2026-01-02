@@ -17,9 +17,16 @@ import java.util.concurrent.atomic.AtomicReference;
 public class RagDocumentCaptureAdvisor implements CallAdvisor, StreamAdvisor {
   private final Logger log = LoggerFactory.getLogger(RagDocumentCaptureAdvisor.class);
   private final AtomicReference<List<Document>> capturedDocuments;
+  private final AtomicReference<String> capturedQueryRewrite;
 
   public RagDocumentCaptureAdvisor(final AtomicReference<List<Document>> capturedDocuments) {
     this.capturedDocuments = capturedDocuments;
+    this.capturedQueryRewrite = new AtomicReference<>();
+  }
+
+  public RagDocumentCaptureAdvisor(final AtomicReference<List<Document>> capturedDocuments, final AtomicReference<String> capturedQueryRewrite) {
+    this.capturedDocuments = capturedDocuments;
+    this.capturedQueryRewrite = capturedQueryRewrite;
   }
 
   // for non-streaming calls
@@ -39,11 +46,20 @@ public class RagDocumentCaptureAdvisor implements CallAdvisor, StreamAdvisor {
   }
 
   private void captureDocuments(ChatClientRequest request) {
-    Object docs = request.context().get("qa_retrieved_documents");
+    Object docs = request.context().get(QueryRewritingVectorStoreAdvisor.RETRIEVED_DOCUMENTS);
     log.debug(docs != null ? "found RAG documents" : "no rag document found");
     if (docs instanceof List<?> docList) {
       log.info("found {} RAG documents", docList.size());
       capturedDocuments.set((List<Document>) docList);
+    }
+
+    Object queryRewrite = request.context().get(QueryRewritingVectorStoreAdvisor.QUERY_REWRITE);
+    log.debug(queryRewrite != null ? "found query rewrite" : "no query rewrite found");
+    if (queryRewrite instanceof String rewrite) {
+      log.info("found query rewrite: '{}'", rewrite);
+      if (capturedQueryRewrite != null) {
+        capturedQueryRewrite.set(rewrite);
+      }
     }
   }
 
