@@ -218,7 +218,12 @@ public class QueryRewritingVectorStoreAdvisor implements BaseAdvisor {
 
             // Convert VectorSearchResult to Document
             return searchResults.stream()
-                    .map(result -> new Document(result.text(), result.metadata()))
+                    .map(result -> {
+                        return Document.builder().text(result.text())
+                            .metadata(result.metadata())
+                            .score(result.score())
+                            .build();
+                    })
                     .collect(Collectors.toList());
 
         } catch (Exception e) {

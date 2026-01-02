@@ -35,7 +35,7 @@ export interface VectorSearchRequest {
 export interface VectorSearchResult {
   text: string,
   metadata: Map<string, unknown>,
-  score: null
+  score: number | null
 }
 
 export interface VectorSearchResponse {
