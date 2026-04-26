@@ -121,7 +121,7 @@ public class QueryRewritingService {
 
         try {
             var response = ollamaChatModel.call(
-                new Prompt(rewritingPrompt, OllamaChatOptions.builder().build())
+                new Prompt(rewritingPrompt, OllamaChatOptions.builder().model("gemma3:4b").disableThinking().build())
             );
 
             String rewritten = response.getResult().getOutput().getText().trim();

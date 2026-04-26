@@ -1,8 +1,6 @@
 # document-ingestion-api
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
-
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
+This project allows you to ingest large documents and stores them in a queryable database 
 
 ## Running the application in dev mode
 
@@ -52,6 +50,71 @@ Or, if you don't have GraalVM installed, you can run the native executable build
 You can then execute your native executable with: `./build/document-ingestion-api-1.0.0-SNAPSHOT-runner`
 
 If you want to learn more about building native executables, please consult <https://quarkus.io/guides/gradle-tooling>.
+
+## Database
+
+### Starting the database
+
+A `start-db.sh` script is provided to run a local PostgreSQL instance (via Docker):
+
+```shell script
+bash start-db.sh
+```
+
+This starts a `pgvector/pgvector:pg17` container on port `5436` with:
+
+- User: `postgres`
+- Password: `xxx`
+- Database: `spring-ai-demo-db`
+
+To verify the database is running and migrations have applied:
+
+```shell script
+PGPASSWORD=xxx psql -h localhost -p 5436 -U postgres -d spring-ai-demo-db -c "\dt"
+```
+
+### Migrations (Flyway)
+
+Database schema is managed with [Flyway](https://flywaydb.org/) 12.4.0. Migration scripts live in:
+
+```
+src/main/resources/db/migration/
+```
+
+Scripts follow the naming convention `V{version}__{description}.sql`. Flyway runs automatically on application startup (`quarkus.flyway.migrate-at-start=true`). Migration is skipped in the `test` profile.
+
+Current migrations:
+
+| Version | Description |
+|---------|-------------|
+| V1 | Create `documents` table |
+| V2 | Create `chapters` table (FK to `documents`) |
+| V3 | Create `sections` table (FK to `chapters`) |
+
+
+## jOOQ Code Generation
+
+The data layer uses [jOOQ](https://www.jooq.org/) 3.21.2 with type-safe generated classes. Generation uses the `DDLDatabase` approach — it reads the Flyway migration SQL files directly via jOOQ's built-in SQL parser and an in-memory H2 instance, so **no live database connection is required** to regenerate types.
+
+Generated sources are written to `src/main/generated/` and are compiled as part of the main source set. This directory should be committed to version control.
+
+To regenerate after adding or modifying a migration:
+
+```shell script
+./gradlew jooqCodegen
+```
+
+Generated classes are located at `com.chriswininger.db.generated` and include table definitions, record types, keys, and indexes for all three tables.
+
+### Repository layer
+
+CDI repository beans in `com.chriswininger.repository` provide typed read/write access to each table:
+
+- `DocumentRepository` — `findAll`, `findById`, `insert`, `update`, `deleteById`
+- `ChapterRepository` — `findAll`, `findById`, `findByDocumentId`, `insert`, `update`, `deleteById`
+- `SectionRepository` — `findAll`, `findById`, `findByChapterId`, `insert`, `update`, `deleteById`
+
+A `DSLContextProducer` bean in `com.chriswininger.db` wires the Quarkus-managed Agroal datasource into jOOQ's `DSLContext` with `SQLDialect.POSTGRES`.
 
 ## Provided Code
 
