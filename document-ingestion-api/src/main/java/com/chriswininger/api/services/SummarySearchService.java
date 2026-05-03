@@ -22,6 +22,8 @@ public class SummarySearchService {
     SummarySearchAiService summarySearchAiService;
 
     // TODO, extract title in summary, include file name at front half
+    // also consider getting markdown version
+    // and allowing user supplied chapter split regex (danger)
     public String findSummaries(String plainText) {
         Document document = Document.from(plainText);
 
