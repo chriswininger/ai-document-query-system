@@ -1,8 +1,8 @@
 package com.chriswininger.ai;
 
-import com.chriswininger.api.services.SummarySearchAiService;
-import dev.langchain4j.model.chat.ChatModel;
+import com.chriswininger.api.services.ChapterSummaryAiService;
 import dev.langchain4j.model.chat.Capability;
+import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.ollama.OllamaChatModel;
 import dev.langchain4j.service.AiServices;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -12,7 +12,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import java.time.Duration;
 
 @ApplicationScoped
-public class SummarySearchAiServiceProducer {
+public class ChapterSummaryAiServiceProducer {
 
     @ConfigProperty(name = "ollama.base-url")
     String baseUrl;
@@ -23,17 +23,20 @@ public class SummarySearchAiServiceProducer {
     @ConfigProperty(name = "ollama.timeout-seconds", defaultValue = "120")
     long timeoutSeconds;
 
+    @ConfigProperty(name = "ollama.num-ctx", defaultValue = "16384")
+    int numCtx;
+
     @Produces
     @ApplicationScoped
-    public SummarySearchAiService summarySearchAiService() {
+    public ChapterSummaryAiService chapterSummaryAiService() {
         ChatModel jsonModel = OllamaChatModel.builder()
                 .baseUrl(baseUrl)
                 .modelName(modelName)
                 .timeout(Duration.ofSeconds(timeoutSeconds))
-                .numCtx(16384)
+                .numCtx(numCtx)
                 .supportedCapabilities(Capability.RESPONSE_FORMAT_JSON_SCHEMA)
                 .build();
 
-        return AiServices.create(SummarySearchAiService.class, jsonModel);
+        return AiServices.create(ChapterSummaryAiService.class, jsonModel);
     }
 }

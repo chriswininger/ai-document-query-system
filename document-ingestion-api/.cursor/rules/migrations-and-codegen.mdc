@@ -1,0 +1,45 @@
+---
+description: Database migrations and jOOQ code generation conventions
+globs: src/main/resources/db/migration/*.sql,src/main/generated/**/*.java,src/main/java/com/chriswininger/repository/*.java,src/main/java/com/chriswininger/db/*.java
+alwaysApply: false
+---
+
+# Migrations & jOOQ Conventions
+
+## Adding a migration
+
+1. Create `src/main/resources/db/migration/V{n}__{description}.sql` (increment version)
+2. Regenerate jOOQ types (offline — no live DB needed):
+   ```bash
+   source /usr/local/sdkman/bin/sdkman-init.sh && ./gradlew jooqCodegen
+   ```
+3. Commit both the migration file and the regenerated `src/main/generated/` sources
+
+Flyway runs automatically on app startup. It is disabled in the test profile via `%test.quarkus.flyway.migrate-at-start=false`.
+
+## jOOQ setup
+
+- Uses `DDLDatabase` — reads migration SQL files via an in-memory H2 instance, no live DB required
+- Generated package: `com.chriswininger.db.generated`
+- `DSLContext` is produced by `com.chriswininger.db.DSLContextProducer` (CDI `@ApplicationScoped` producer backed by `AgroalDataSource`)
+- There is NO `quarkus-jooq` extension — jOOQ is wired manually via the producer
+
+## Repository pattern
+
+- One `@ApplicationScoped` repository per table in `com.chriswininger.repository`
+- Inject `DSLContext dsl` and use generated `Tables.*` constants and typed `*Record` classes
+
+## Postgres-specific DDL in migrations
+
+Wrap any syntax the jOOQ parser doesn't understand (e.g. `CREATE EXTENSION`) to avoid codegen failures:
+
+```sql
+-- [jooq ignore start]
+CREATE EXTENSION postgis;
+-- [jooq ignore stop]
+```
+
+## Type notes
+
+- `TEXT[]` columns are generated as `String[]` — correct for Postgres at runtime
+- `TIMESTAMP WITH TIME ZONE` is generated as `OffsetDateTime`

@@ -8,6 +8,7 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 
 @ApplicationScoped
@@ -25,7 +26,8 @@ public class SummarySearchService {
     // also consider getting markdown version
     // and allowing user supplied chapter split regex (danger)
     public String findSummaries(String plainText) {
-        Document document = Document.from(plainText);
+        final long startTime = System.currentTimeMillis();
+        final Document document = Document.from(plainText);
 
         DocumentBySentenceSplitter sentenceSplitter = new DocumentBySentenceSplitter(Integer.MAX_VALUE, 0);
         List<String> sentences = Arrays.stream(sentenceSplitter.split(document.text()))
@@ -53,7 +55,9 @@ public class SummarySearchService {
         }
 
         String summary = summarySearchAiService.summaryFromMetaContents(combinedMeta);
-        LOG.infof("=== Summary ===%n%s", summary);
+
+        LOG.debugf("=== Summary ===%n%s", summary);
+        LOG.infof("finished findSummaries in %s ms", System.currentTimeMillis() - startTime);
         return summary;
     }
 
