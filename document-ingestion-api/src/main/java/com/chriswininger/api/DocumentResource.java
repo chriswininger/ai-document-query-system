@@ -3,7 +3,6 @@ package com.chriswininger.api;
 import com.chriswininger.api.dto.requests.SubmitDocumentRequest;
 import com.chriswininger.api.dto.requests.SubmitDocumentResponse;
 import com.chriswininger.api.services.ChapterService;
-import com.chriswininger.api.services.ChapterServiceBackup;
 import com.chriswininger.api.services.SummarySearchService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -15,7 +14,6 @@ import jakarta.ws.rs.core.Response;
 import org.jboss.logging.Logger;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.regex.Pattern;
 
 @Path(ApiConstants.BASE_REST_V1)
@@ -45,14 +43,19 @@ public class DocumentResource {
         final var chapters = chapterService.splitIntoChapters(body, chapterSplitPattern);
         for (int i = 0; i < chapters.size(); i++) {
             final long startTime = System.currentTimeMillis();
-            LOG.infof("Start Summarizing Chapter: %s -- %s", i, chapters.get(i).label());
+            if ("Intro".equals(chapters.get(i).label())) {
+                // skip intro
+                continue;
+            }
+
+            LOG.infof("Start Summarizing Chapter: %s -- %s", chapters.get(i).label(), chapters.get(i).label());
             final var chpSummary = chapterService.summarizeChapter(chapters.get(i));
             LOG.infof("Done Summarizing Chapter: %s -- %s -> too %s ms",
                     i, chapters.get(i).label(), System.currentTimeMillis() - startTime);
             LOG.infof("====== Chapter Summary =======\n%s\n=============", chpSummary);
         }
 
-        LOG.infof("!!! MUCH chp %s", chapters);
+        //LOG.infof("!!! MUCH chp %s", chapters);
         return Response.accepted(new SubmitDocumentResponse("success", summary)).build();
     }
 

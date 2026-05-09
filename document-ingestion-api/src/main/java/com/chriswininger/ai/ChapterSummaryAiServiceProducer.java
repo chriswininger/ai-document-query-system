@@ -1,5 +1,6 @@
 package com.chriswininger.ai;
 
+import com.chriswininger.api.DocumentResource;
 import com.chriswininger.api.services.ChapterSummaryAiService;
 import dev.langchain4j.model.chat.Capability;
 import dev.langchain4j.model.chat.ChatModel;
@@ -8,11 +9,13 @@ import dev.langchain4j.service.AiServices;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 
 import java.time.Duration;
 
 @ApplicationScoped
 public class ChapterSummaryAiServiceProducer {
+    private static final Logger LOG = Logger.getLogger(ChapterSummaryAiServiceProducer.class);
 
     @ConfigProperty(name = "ollama.base-url")
     String baseUrl;
@@ -23,7 +26,7 @@ public class ChapterSummaryAiServiceProducer {
     @ConfigProperty(name = "ollama.timeout-seconds", defaultValue = "120")
     long timeoutSeconds;
 
-    @ConfigProperty(name = "ollama.num-ctx", defaultValue = "16384")
+    @ConfigProperty(name = "ollama.num-ctx", defaultValue = "32768")
     int numCtx;
 
     @Produces
@@ -37,6 +40,17 @@ public class ChapterSummaryAiServiceProducer {
                 .supportedCapabilities(Capability.RESPONSE_FORMAT_JSON_SCHEMA)
                 .build();
 
-        return AiServices.create(ChapterSummaryAiService.class, jsonModel);
+        return AiServices.builder(ChapterSummaryAiService.class)
+                .chatModel(jsonModel)
+                .chatRequestTransformer(req -> {
+                    LOG.info("num messages: " + req.messages().size());
+                    if (req.messages().size() > 2) {
+                        // hopefully this is solved now, but leaving this in place just in case
+                        // https://github.com/quarkiverse/quarkus-langchain4j/issues/2071
+                        LOG.warn("Warning stale messages may be getting sent to the model: " + req.messages().size());
+                    }
+
+                    return req;
+                }).build();
     }
 }
