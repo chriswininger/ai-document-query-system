@@ -12,7 +12,7 @@ cat "$1" | jq -Rs --arg pattern "CHAPTER .*\n\n" --arg title "$TITLE" \
 
 echo "Payload written to $TMPFILE ($(wc -c < "$TMPFILE") bytes), sending..."
 
-curl -v -X POST http://localhost:8080/rest/v1/submit-document \
+curl -v -X POST http://localhost:8080/rest/v1/test/generate-test-chapters \
     -H "Content-Type: application/json" \
     --data @"$TMPFILE"
 

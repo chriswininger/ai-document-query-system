@@ -13,6 +13,11 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.jboss.logging.Logger;
 
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -28,12 +33,49 @@ public class DocumentResource {
     ChapterService chapterService;
 
     @POST
+    @Path("/test/generate-test-chapters")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public void generateTestChapters(SubmitDocumentRequest request) {
+        final String documentText = request.document();
+        final String documentTitle = request.documentTitle();
+
+        LOG.infof("POST /rest/v1/test/generate-test-chapters — title", documentTitle);
+        LOG.infof("POST /rest/v1/test/generate-test-chapters — document size: %d bytes", documentText.length());
+        final Pattern chapterSplitPattern = getChapterSplitPattern(request);
+        final var chapters = chapterService.splitIntoChapters(documentText, chapterSplitPattern);
+        LOG.infof("POST /rest/v1/test/generate-test-chapters — num chapters", chapters.size());
+
+        final String safeTitle = toSafeFileName(documentTitle);
+
+        final var outDir = Paths.get("src/test/resources/testDocuments/" + safeTitle);
+        try {
+            Files.createDirectories(outDir);
+        } catch (IOException e) {
+            LOG.errorf("Failed to create output directory '%s': %s", outDir, e.getMessage());
+            return;
+        }
+        chapters.forEach(chp -> {
+            final String safeChapter = toSafeFileName(chp.label());
+
+            String fileName = safeTitle + "_" + safeChapter + ".txt";
+            try {
+                LOG.infof("Saving chapter: '%s' (%s num characters)", fileName, chp.content().length());
+                Files.writeString(outDir.resolve(fileName), chp.content());
+                LOG.infof("Saved chapter: %s", fileName);
+            } catch (IOException e) {
+                LOG.errorf("Failed to write chapter file '%s': %s", fileName, e.getMessage());
+            }
+        });
+    }
+
+    @POST
     @Path("/submit-document")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response submitDocument(SubmitDocumentRequest request) {
         final String body = request.document();
-        LOG.infof("POST /rest/v1/submit-document hit — document size: %d bytes", body.length());
+        LOG.infof("POST /rest/v1/submit-document — document size: %d bytes", body.length());
 
         final String summary = summarySearchService.findSummaries(body);
 
@@ -41,6 +83,7 @@ public class DocumentResource {
 
         final Pattern chapterSplitPattern = getChapterSplitPattern(request);
         final var chapters = chapterService.splitIntoChapters(body, chapterSplitPattern);
+
         for (int i = 0; i < chapters.size(); i++) {
             final long startTime = System.currentTimeMillis();
             if ("Intro".equals(chapters.get(i).label())) {
@@ -56,7 +99,15 @@ public class DocumentResource {
         }
 
         //LOG.infof("!!! MUCH chp %s", chapters);
+
         return Response.accepted(new SubmitDocumentResponse("success", summary)).build();
+    }
+
+    private String toSafeFileName(String input) {
+        return input
+                .replaceAll("[^a-zA-Z0-9_]", "_")
+                .replaceAll("_+", "_")
+                .toLowerCase();
     }
 
     private Pattern getChapterSplitPattern(SubmitDocumentRequest submitDocumentRequest) {

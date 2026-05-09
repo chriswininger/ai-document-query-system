@@ -4,9 +4,7 @@ import com.chriswininger.api.dto.ChapterSummary;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,18 +27,35 @@ public class ChapterService {
 
         int lastEnd = 0;
         String lastHeader = null;
+        final Set<String> existingLabels = new HashSet<>();
+        int labelPostFixNdx = 0;
         while (matcher.find()) {
             // text between the previous match and this one becomes the body of the last chapter
             final String body = document.substring(lastEnd, matcher.start());
             if (lastHeader != null || !body.isBlank()) {
-                chapters.add(new Chapter(Objects.nonNull(lastHeader) ? lastHeader.trim() : "Intro", body));
+                // add a postfix if we've seen this before, this happening, for example, when a book
+                // contains the first chapter of the next book in a series as preview
+                String label = Objects.nonNull(lastHeader) ? lastHeader.trim() : "Intro";
+                if (existingLabels.contains(label)) {
+                    label += ("_" + (++labelPostFixNdx));
+                }
+
+                existingLabels.add(label);
+                chapters.add(new Chapter(label, body));
             }
             lastHeader = matcher.group(); // the matched header itself
             lastEnd = matcher.end();
         }
 
+        String label = lastHeader.trim();
+
+        // add a postfix if we've seen this before, this happening, for example, when a book
+        // contains the first chapter of the next book in a series as preview
+        if (existingLabels.contains(label)) {
+            label += ("_" + (++labelPostFixNdx));
+        }
         // tail — everything after the last header
-        chapters.add(new Chapter(lastHeader, document.substring(lastEnd)));
+        chapters.add(new Chapter(label, document.substring(lastEnd)));
 
         return chapters;
     }
