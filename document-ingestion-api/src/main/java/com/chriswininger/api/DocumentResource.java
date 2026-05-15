@@ -77,9 +77,6 @@ public class DocumentResource {
         final String body = request.document();
         LOG.infof("POST /rest/v1/submit-document — document size: %d bytes", body.length());
 
-        final String summary = summarySearchService.findSummaries(body);
-
-        LOG.infof("Found metasummary %s", summary);
 
         final Pattern chapterSplitPattern = getChapterSplitPattern(request);
         final var chapters = chapterService.splitIntoChapters(body, chapterSplitPattern);
@@ -91,14 +88,20 @@ public class DocumentResource {
                 continue;
             }
 
-            LOG.infof("Start Summarizing Chapter: %s -- %s", chapters.get(i).label(), chapters.get(i).label());
+            LOG.infof("==== Start Summarizing Chapter: [%s] -> %s =====", i, chapters.get(i).label());
             final var chpSummary = chapterService.summarizeChapter(chapters.get(i));
-            LOG.infof("Done Summarizing Chapter: %s -- %s -> too %s ms",
+            LOG.infof("Done Summarizing Chapter: %s -- %s -> took %s ms",
                     i, chapters.get(i).label(), System.currentTimeMillis() - startTime);
-            LOG.infof("====== Chapter Summary =======\n%s\n=============", chpSummary);
+            LOG.infof("summary: '%s'", chpSummary);
+            LOG.info("=============================");
         }
 
         //LOG.infof("!!! MUCH chp %s", chapters);
+
+        final String summary = summarySearchService.findSummaries(body);
+
+        LOG.infof("Found metasummary %s", summary);
+
 
         return Response.accepted(new SubmitDocumentResponse("success", summary)).build();
     }

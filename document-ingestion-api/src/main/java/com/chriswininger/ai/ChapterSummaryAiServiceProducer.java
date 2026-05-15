@@ -26,8 +26,11 @@ public class ChapterSummaryAiServiceProducer {
     @ConfigProperty(name = "ollama.timeout-seconds", defaultValue = "120")
     long timeoutSeconds;
 
-    @ConfigProperty(name = "ollama.num-ctx", defaultValue = "32768")
+    @ConfigProperty(name = "ollama.num-ctx", defaultValue = "131072")
     int numCtx;
+
+    @ConfigProperty(name = "com.chriswininger.model.request-logging", defaultValue = "false")
+    boolean requestLogging;
 
     @Produces
     @ApplicationScoped
@@ -38,6 +41,8 @@ public class ChapterSummaryAiServiceProducer {
                 .timeout(Duration.ofSeconds(timeoutSeconds))
                 .numCtx(numCtx)
                 .supportedCapabilities(Capability.RESPONSE_FORMAT_JSON_SCHEMA)
+                .logRequests(requestLogging)
+                .logResponses(requestLogging)
                 .build();
 
         return AiServices.builder(ChapterSummaryAiService.class)
@@ -51,6 +56,7 @@ public class ChapterSummaryAiServiceProducer {
                     }
 
                     return req;
-                }).build();
+                })
+                .build();
     }
 }
