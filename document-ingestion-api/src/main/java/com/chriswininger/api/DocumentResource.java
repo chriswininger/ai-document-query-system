@@ -1,7 +1,7 @@
 package com.chriswininger.api;
 
+import com.chriswininger.api.dto.ChapterSummary;
 import com.chriswininger.api.dto.requests.SubmitDocumentRequest;
-import com.chriswininger.api.dto.requests.SubmitDocumentResponse;
 import com.chriswininger.api.services.ChapterService;
 import com.chriswininger.api.services.SummarySearchService;
 import jakarta.inject.Inject;
@@ -10,7 +10,6 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
 import org.jboss.logging.Logger;
 
 
@@ -18,6 +17,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -73,7 +74,7 @@ public class DocumentResource {
     @Path("/submit-document")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response submitDocument(SubmitDocumentRequest request) {
+    public List<ChapterSummary> submitDocument(SubmitDocumentRequest request) {
         final String body = request.document();
         LOG.infof("POST /rest/v1/submit-document — document size: %d bytes", body.length());
 
@@ -81,6 +82,7 @@ public class DocumentResource {
         final Pattern chapterSplitPattern = getChapterSplitPattern(request);
         final var chapters = chapterService.splitIntoChapters(body, chapterSplitPattern);
 
+        final List<ChapterSummary> chapterSummaries = new ArrayList<>();
         for (int i = 0; i < chapters.size(); i++) {
             final long startTime = System.currentTimeMillis();
             if ("Intro".equals(chapters.get(i).label())) {
@@ -94,6 +96,8 @@ public class DocumentResource {
                     i, chapters.get(i).label(), System.currentTimeMillis() - startTime);
             LOG.infof("summary: '%s'", chpSummary);
             LOG.info("=============================");
+
+            chapterSummaries.add(chpSummary);
         }
 
         //LOG.infof("!!! MUCH chp %s", chapters);
@@ -103,7 +107,7 @@ public class DocumentResource {
         LOG.infof("Found metasummary %s", summary);
 
 
-        return Response.accepted(new SubmitDocumentResponse("success", summary)).build();
+        return chapterSummaries; // Response.accepted(new SubmitDocumentResponse("success", summary)).build();
     }
 
     private String toSafeFileName(String input) {

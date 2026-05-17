@@ -1,4 +1,6 @@
 #! /usr/bin/env bash
+# Pass a book to this and it will split it into chapters and save it to testResources
+# This allows you test chapter summary functions against different documents
 set -e
 
 # supply a path to the file

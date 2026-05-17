@@ -174,7 +174,7 @@ class ChapterServiceTest {
                 final long startTime = System.currentTimeMillis();
                 System.out.println("Start summarising: " + file.getFileName());
                 System.out.println("Size: " + content.length());
-                final var summary = chapterService.summarizeChapter(new Chapter(file.getFileName().toString(), content));
+                final var summary = chapterSummaryAiServiceDirect.summarize(file.getFileName().toString(), content);
                 System.out.println("Done summarising: " + file.getFileName());
                 System.out.println("Time taken: " + (System.currentTimeMillis() - startTime));
                 System.out.println("Summary: " + summary);

@@ -11,4 +11,11 @@ public record ChapterSummary(
         List<String> characters,
         @Description("Questions that a reader might have that this chapter answers")
         List<String> possibleQuestionsThisAnswers
-) {}
+) {
+        public ChapterSummary withCharacters(final List<String> characters) {
+                return new ChapterSummary(
+                        this.summary(),
+                        characters,
+                        this.possibleQuestionsThisAnswers());
+        }
+}
