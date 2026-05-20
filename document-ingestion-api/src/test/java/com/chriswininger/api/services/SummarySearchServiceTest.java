@@ -1,5 +1,6 @@
 package com.chriswininger.api.services;
 
+import com.chriswininger.api.dto.inferenceresults.BookMetadataAnalysisResult;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
@@ -50,13 +51,32 @@ class SummarySearchServiceTest {
                 ==================
                 %n""", frontSummary);
 
-        final String backOfBook = bookMetaExtractionService.extractMetaDataFromTheFrontBackTheBook(content, frontSummary);
+        final String backOfBook = bookMetaExtractionService.extractMetaDataFromTheBackTheBook(content, frontSummary);
 
         System.out.printf("""
                 ===== Back =====
                 %s
                 ==================
                 %n""", backOfBook);
+    }
+
+    @Test
+    void extractMetaDataFromTheBook_shouldReturnResults() throws IOException, InterruptedException {
+        final String content = new String(
+                getClass().getClassLoader()
+                        .getResourceAsStream("testDocuments/novels/Master and Commander (Vol. Book 1) (Aubrey - Patrick O'Brian.txt")
+                        .readAllBytes(),
+                StandardCharsets.UTF_8
+        );
+
+        final BookMetadataAnalysisResult summary = bookMetaExtractionService
+                .extractMetaDataFromTheBook(content, null);
+
+        System.out.printf("""
+                ===== Summary JSON =====
+                %s
+                ==================
+                %n""", summary);
     }
 
     @Test

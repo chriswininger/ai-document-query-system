@@ -1,5 +1,6 @@
 package com.chriswininger.api.services;
 
+import com.chriswininger.api.dto.inferenceresults.BookMetadataAnalysisResult;
 import com.chriswininger.api.services.inferenceapi.OllamaApiService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.data.document.Document;
@@ -33,7 +34,7 @@ public class BookMetaExtractionService {
         You are a document analysis assistant. Your job is to analyze a segment of text extracted
         from books. You will be looking at the front of the book to see what can be learned, from
         things like the copyright page, introduction, and forward. Your task is to produce a plain-text analysis
-        with three clearly labeled sections:
+        with clearly labeled sections:
         
         Has Summary Information:
         Did we correctly provide the front half of the book, containing information such as title,
@@ -79,7 +80,7 @@ public class BookMetaExtractionService {
         Do not use "Summary Of Book Intro" directly when analyzing the text. It's there for additional context only.
         
         Your task is to produce a plain-text analysis
-        with three clearly labeled sections:
+        with clearly labeled sections:
         
         Has Summary Information:
         Did we correctly provide the back half of the book, containing information such as publisher, index, postscript?
@@ -103,7 +104,29 @@ public class BookMetaExtractionService {
         A list of questions a curious reader might have that are directly answered by the introduction. Phrase them
         as natural questions. "What published this book?", Who wrote this novel?". Include questions specific to this
         book, "What is {title} about?", "What books did {author} write?" List one per line.
-        """;
+        """.trim();
+
+    private static final String SYSTEM_MESSAGE_STRUCTURE = """
+            You are a data formatting assistant. You will be given two plain-text literary analyses
+            based on the front and back of a book. Each analysis contains labeled the labeled sections:
+             "Has Summary Information",
+             "Copyright",
+             "Publisher",
+             "Summary",
+             "Characters",
+             "POSSIBLE QUESTIONS THIS ANSWERS"
+
+            Your job is to convert this text into a JSON object.
+
+            Provide the following fields:
+            ```
+            %s
+            ```
+
+            Rules:
+            - Do not add, remove, or rephrase any content. Faithfully convert what is given.
+            - Respond with ONLY the JSON object. No markdown, no explanation, no code fences.
+    """.trim();
 
     public BookMetaExtractionService(
             final ChapterService chapterService,
@@ -111,6 +134,30 @@ public class BookMetaExtractionService {
     ) {
         this.chapterService = chapterService;
         this.ollamaApiService = ollamaApiService;
+    }
+
+    public BookMetadataAnalysisResult extractMetaDataFromTheBook(
+            final String fullBook,
+            final Pattern chapterSplitter
+    ) throws IOException, InterruptedException {
+        final String frontAnalysis = extractMetaDataFromTheFrontOfTheBook(fullBook, chapterSplitter);
+        final String backAnalysis = extractMetaDataFromTheBackTheBook(fullBook, frontAnalysis);
+
+        final String userMessage = """
+                ===== Analysis of Front ======
+                %s
+                ==============================
+
+                ===== Analysis of Back ======
+                %s
+                ==============================
+
+                Based on the above analyses of both front and back please respond with structured JSON.
+        """.formatted(frontAnalysis, backAnalysis).trim();
+
+        return ollamaApiService.callOllamaStructuredResponse(
+                SYSTEM_MESSAGE_STRUCTURE.formatted(ollamaApiService.buildExampleJson(BookMetadataAnalysisResult.class)),
+                userMessage, true, BookMetadataAnalysisResult.class);
     }
 
     public String extractMetaDataFromTheFrontOfTheBook(
@@ -136,11 +183,11 @@ public class BookMetaExtractionService {
                 =======================
                 %s
                 =======================
-                """.formatted(intro);
+                """.formatted(intro).trim();
         return ollamaApiService.callOllamaPlainTextResponse(SYSTEM_PROMPT_FRONT, userMessage, true);
     }
 
-    public String extractMetaDataFromTheFrontBackTheBook(
+    public String extractMetaDataFromTheBackTheBook(
             final String fullBook, final String introSummary
     ) throws IOException, InterruptedException {
         final String ending = takeSentencesFromBack(fullBook, 40);

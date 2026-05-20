@@ -1,8 +1,11 @@
 package com.chriswininger.api;
 
 import com.chriswininger.api.dto.ChapterSummary;
+import com.chriswininger.api.dto.inferenceresults.BookMetadataAnalysisResult;
 import com.chriswininger.api.dto.requests.SubmitDocumentRequest;
+import com.chriswininger.api.services.BookMetaExtractionService;
 import com.chriswininger.api.services.ChapterService;
+import com.chriswininger.api.services.ChapterSummaryAiServiceDirect;
 import com.chriswininger.api.services.SummarySearchService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -27,11 +30,23 @@ public class DocumentResource {
 
     private static final Logger LOG = Logger.getLogger(DocumentResource.class);
 
-    @Inject
-    SummarySearchService summarySearchService;
 
-    @Inject
-    ChapterService chapterService;
+    private final SummarySearchService summarySearchService;
+
+    private final ChapterSummaryAiServiceDirect chapterService;
+
+    private final BookMetaExtractionService bookMetaExtractionService;
+
+    public DocumentResource(
+            final SummarySearchService summarySearchService,
+            final ChapterSummaryAiServiceDirect chapterService,
+            final BookMetaExtractionService bookMetaExtractionService
+    ) {
+        this.summarySearchService = summarySearchService;
+        this.chapterService = chapterService;
+        this.bookMetaExtractionService = bookMetaExtractionService;
+    }
+
 
     @POST
     @Path("/test/generate-test-chapters")
@@ -74,13 +89,18 @@ public class DocumentResource {
     @Path("/submit-document")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public List<ChapterSummary> submitDocument(SubmitDocumentRequest request) {
-        final String body = request.document();
-        LOG.infof("POST /rest/v1/submit-document — document size: %d bytes", body.length());
-
+    public BookMetadataAnalysisResult submitDocument(SubmitDocumentRequest request) throws IOException, InterruptedException {
+        final String bookContents = request.document();
+        LOG.infof("POST /rest/v1/submit-document — document size: %d bytes", bookContents.length());
 
         final Pattern chapterSplitPattern = getChapterSplitPattern(request);
-        final var chapters = chapterService.splitIntoChapters(body, chapterSplitPattern);
+
+        LOG.infof("POST /rest/v1/submit-document — Summarizing based on front and back of book");
+        final var bookMetaDataSummary = bookMetaExtractionService.extractMetaDataFromTheBook(bookContents, chapterSplitPattern);
+        LOG.infof("POST /rest/v1/submit-document — bookMetaDataSummary %s", bookMetaDataSummary);
+
+        final var chapters = chapterService.splitIntoChapters(bookContents, chapterSplitPattern);
+        LOG.infof("POST /rest/v1/submit-document — num chapters", chapters.size());
 
         final List<ChapterSummary> chapterSummaries = new ArrayList<>();
         for (int i = 0; i < chapters.size(); i++) {
@@ -90,8 +110,11 @@ public class DocumentResource {
                 continue;
             }
 
+            // TODO: We could include just a tiny bit of the previous chapter
+            // that would cathc the preview chapter issue, we could move this loop
+            // into the service
             LOG.infof("==== Start Summarizing Chapter: [%s] -> %s =====", i, chapters.get(i).label());
-            final var chpSummary = chapterService.summarizeChapter(chapters.get(i));
+            final var chpSummary = chapterService.summarize(chapters.get(i).label(), chapters.get(i).content());
             LOG.infof("Done Summarizing Chapter: %s -- %s -> took %s ms",
                     i, chapters.get(i).label(), System.currentTimeMillis() - startTime);
             LOG.infof("summary: '%s'", chpSummary);
@@ -100,14 +123,7 @@ public class DocumentResource {
             chapterSummaries.add(chpSummary);
         }
 
-        //LOG.infof("!!! MUCH chp %s", chapters);
-
-        final String summary = summarySearchService.findSummaries(body);
-
-        LOG.infof("Found metasummary %s", summary);
-
-
-        return chapterSummaries; // Response.accepted(new SubmitDocumentResponse("success", summary)).build();
+        return bookMetaDataSummary; // Response.accepted(new SubmitDocumentResponse("success", summary)).build();
     }
 
     private String toSafeFileName(String input) {
