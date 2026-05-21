@@ -1,13 +1,12 @@
 package com.chriswininger.api;
 
-import com.chriswininger.api.dto.ChapterSummary;
+import com.chriswininger.api.dto.inferenceresults.ChapterSummary;
 import com.chriswininger.api.dto.inferenceresults.BookMetadataAnalysisResult;
 import com.chriswininger.api.dto.requests.SubmitDocumentRequest;
 import com.chriswininger.api.services.BookMetaExtractionService;
 import com.chriswininger.api.services.ChapterService;
 import com.chriswininger.api.services.ChapterSummaryAiServiceDirect;
 import com.chriswininger.api.services.SummarySearchService;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -30,23 +29,17 @@ public class DocumentResource {
 
     private static final Logger LOG = Logger.getLogger(DocumentResource.class);
 
-
-    private final SummarySearchService summarySearchService;
-
-    private final ChapterSummaryAiServiceDirect chapterService;
+    private final ChapterService chapterService;
 
     private final BookMetaExtractionService bookMetaExtractionService;
 
     public DocumentResource(
-            final SummarySearchService summarySearchService,
-            final ChapterSummaryAiServiceDirect chapterService,
+            final ChapterService chapterService,
             final BookMetaExtractionService bookMetaExtractionService
     ) {
-        this.summarySearchService = summarySearchService;
         this.chapterService = chapterService;
         this.bookMetaExtractionService = bookMetaExtractionService;
     }
-
 
     @POST
     @Path("/test/generate-test-chapters")
@@ -114,7 +107,7 @@ public class DocumentResource {
             // that would cathc the preview chapter issue, we could move this loop
             // into the service
             LOG.infof("==== Start Summarizing Chapter: [%s] -> %s =====", i, chapters.get(i).label());
-            final var chpSummary = chapterService.summarize(chapters.get(i).label(), chapters.get(i).content());
+            final var chpSummary = chapterService.summarizeChapter(chapters.get(i));
             LOG.infof("Done Summarizing Chapter: %s -- %s -> took %s ms",
                     i, chapters.get(i).label(), System.currentTimeMillis() - startTime);
             LOG.infof("summary: '%s'", chpSummary);

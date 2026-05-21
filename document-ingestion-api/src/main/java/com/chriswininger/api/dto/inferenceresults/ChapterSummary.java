@@ -1,4 +1,4 @@
-package com.chriswininger.api.dto;
+package com.chriswininger.api.dto.inferenceresults;
 
 import dev.langchain4j.model.output.structured.Description;
 

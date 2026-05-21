@@ -1,6 +1,6 @@
 package com.chriswininger.api.services;
 
-import com.chriswininger.api.dto.ChapterSummary;
+import com.chriswininger.api.dto.inferenceresults.ChapterSummary;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -11,12 +11,16 @@ import java.util.regex.Pattern;
 @ApplicationScoped
 public class ChapterService {
 
-    @Inject
-    ChapterSummaryAiService chapterSummaryAiService;
+    private final ChapterSummaryAiServiceDirect chapterSummaryAiService;
+
+    public ChapterService(final ChapterSummaryAiServiceDirect chapterSummaryAiService) {
+        this.chapterSummaryAiService = chapterSummaryAiService;
+    }
 
     public ChapterSummary summarizeChapter(final Chapter chapter) {
         return chapterSummaryAiService.summarize(chapter.label(), chapter.content());
     }
+
     public List<Chapter> splitIntoChapters(final String document, final Pattern splitPattern) {
         if (Objects.isNull(splitPattern)) {
             return List.of();
