@@ -73,6 +73,8 @@ public class DocumentResource {
         });
     }
 
+    // TODO: We should include a chapter title in our chapter table and also an index, to let us
+    // track sequence
     @POST
     @Path("/submit-document")
     @Consumes(MediaType.APPLICATION_JSON)

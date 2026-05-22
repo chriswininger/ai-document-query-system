@@ -4,6 +4,7 @@
 package com.chriswininger.db.generated;
 
 
+import com.chriswininger.db.generated.tables.BookMetadata;
 import com.chriswininger.db.generated.tables.Chapters;
 import com.chriswininger.db.generated.tables.Sections;
 
@@ -23,6 +24,7 @@ public class Indexes {
     // INDEX definitions
     // -------------------------------------------------------------------------
 
+    public static final Index IDX_BOOK_METADATA_DOCUMENT_ID = Internal.createIndex(DSL.name("idx_book_metadata_document_id"), BookMetadata.BOOK_METADATA, new OrderField[] { BookMetadata.BOOK_METADATA.DOCUMENT_ID }, false);
     public static final Index IDX_CHAPTERS_DOCUMENT_ID = Internal.createIndex(DSL.name("idx_chapters_document_id"), Chapters.CHAPTERS, new OrderField[] { Chapters.CHAPTERS.DOCUMENT_ID }, false);
     public static final Index IDX_SECTIONS_CHAPTER_ID = Internal.createIndex(DSL.name("idx_sections_chapter_id"), Sections.SECTIONS, new OrderField[] { Sections.SECTIONS.CHAPTER_ID }, false);
 }

@@ -65,7 +65,7 @@ This starts a `pgvector/pgvector:pg17` container on port `5436` with:
 
 - User: `postgres`
 - Password: `xxx`
-- Database: `spring-ai-demo-db`
+- Database: `document-ingestion-db`
 
 To verify the database is running and migrations have applied:
 

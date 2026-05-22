@@ -4,9 +4,11 @@
 package com.chriswininger.db.generated;
 
 
+import com.chriswininger.db.generated.tables.BookMetadata;
 import com.chriswininger.db.generated.tables.Chapters;
 import com.chriswininger.db.generated.tables.Documents;
 import com.chriswininger.db.generated.tables.Sections;
+import com.chriswininger.db.generated.tables.records.BookMetadataRecord;
 import com.chriswininger.db.generated.tables.records.ChaptersRecord;
 import com.chriswininger.db.generated.tables.records.DocumentsRecord;
 import com.chriswininger.db.generated.tables.records.SectionsRecord;
@@ -30,6 +32,7 @@ public class Keys {
     // UNIQUE and PRIMARY KEY definitions
     // -------------------------------------------------------------------------
 
+    public static final UniqueKey<BookMetadataRecord> CONSTRAINT_389 = Internal.createUniqueKey(BookMetadata.BOOK_METADATA, DSL.name("CONSTRAINT_389"), new TableField[] { BookMetadata.BOOK_METADATA.ID }, true);
     public static final UniqueKey<ChaptersRecord> CONSTRAINT_5 = Internal.createUniqueKey(Chapters.CHAPTERS, DSL.name("CONSTRAINT_5"), new TableField[] { Chapters.CHAPTERS.ID }, true);
     public static final UniqueKey<DocumentsRecord> CONSTRAINT_3 = Internal.createUniqueKey(Documents.DOCUMENTS, DSL.name("CONSTRAINT_3"), new TableField[] { Documents.DOCUMENTS.ID }, true);
     public static final UniqueKey<SectionsRecord> CONSTRAINT_38 = Internal.createUniqueKey(Sections.SECTIONS, DSL.name("CONSTRAINT_38"), new TableField[] { Sections.SECTIONS.ID }, true);
@@ -38,6 +41,7 @@ public class Keys {
     // FOREIGN KEY definitions
     // -------------------------------------------------------------------------
 
+    public static final ForeignKey<BookMetadataRecord, DocumentsRecord> CONSTRAINT_389D = Internal.createForeignKey(BookMetadata.BOOK_METADATA, DSL.name("CONSTRAINT_389D"), new TableField[] { BookMetadata.BOOK_METADATA.DOCUMENT_ID }, Keys.CONSTRAINT_3, new TableField[] { Documents.DOCUMENTS.ID }, true, ForeignKeyRule.CASCADE, ForeignKeyRule.NO_ACTION);
     public static final ForeignKey<ChaptersRecord, DocumentsRecord> CONSTRAINT_55 = Internal.createForeignKey(Chapters.CHAPTERS, DSL.name("CONSTRAINT_55"), new TableField[] { Chapters.CHAPTERS.DOCUMENT_ID }, Keys.CONSTRAINT_3, new TableField[] { Documents.DOCUMENTS.ID }, true, ForeignKeyRule.CASCADE, ForeignKeyRule.NO_ACTION);
     public static final ForeignKey<SectionsRecord, ChaptersRecord> CONSTRAINT_388 = Internal.createForeignKey(Sections.SECTIONS, DSL.name("CONSTRAINT_388"), new TableField[] { Sections.SECTIONS.CHAPTER_ID }, Keys.CONSTRAINT_5, new TableField[] { Chapters.CHAPTERS.ID }, true, ForeignKeyRule.CASCADE, ForeignKeyRule.NO_ACTION);
 }

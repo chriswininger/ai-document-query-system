@@ -1,11 +1,21 @@
 package com.chriswininger.api.services;
 
+import com.chriswininger.api.dto.BookMetadataAnalysis;
 import com.chriswininger.api.dto.ChapterSummary;
 import com.chriswininger.api.dto.ImportedBookResult;
 import com.chriswininger.api.dto.Segment;
+import com.chriswininger.api.dto.inferenceresults.BookMetadataAnalysisResult;
+import com.chriswininger.api.dto.inferenceresults.BookSummaryResult;
 import com.chriswininger.api.dto.inferenceresults.ChapterSummaryResult;
+import com.chriswininger.api.dto.inferenceresults.SegmentSummaryResult;
+import com.chriswininger.db.generated.Tables;
+import com.chriswininger.db.generated.tables.records.BookMetadataRecord;
+import com.chriswininger.db.generated.tables.records.ChaptersRecord;
+import com.chriswininger.db.generated.tables.records.DocumentsRecord;
+import com.chriswininger.db.generated.tables.records.SectionsRecord;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.jboss.logging.Logger;
+import org.jooq.DSLContext;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -20,17 +30,20 @@ public class ImportBookService {
     private final ChapterService chapterService;
     private final BookSummaryService bookSummaryService;
     private final SegmentSummaryService segmentSummaryService;
+    private final DSLContext dsl;
 
     public ImportBookService(
             final BookMetaExtractionService bookMetaExtractionService,
             final ChapterService chapterService,
             final BookSummaryService bookSummaryService,
-            final SegmentSummaryService segmentSummaryService
+            final SegmentSummaryService segmentSummaryService,
+            final DSLContext dsl
     ) {
         this.bookMetaExtractionService = bookMetaExtractionService;
         this.chapterService = chapterService;
         this.bookSummaryService = bookSummaryService;
         this.segmentSummaryService = segmentSummaryService;
+        this.dsl = dsl;
     }
 
     public ImportedBookResult importBook(
@@ -63,7 +76,7 @@ public class ImportBookService {
             chapterSummaryResults.add(chpSummary);
         }
 
-        final String frontBackSummary = bookMetaDataSummary.summary();
+        final String frontBackSummary = bookMetaDataSummary.bookMetadataAnalysisResult().summary();
         final List<String> chapterSummaryTexts = chapterSummaryResults.stream()
                 .map(ChapterSummaryResult::summary)
                 .toList();
@@ -85,6 +98,82 @@ public class ImportBookService {
             ));
         }
 
-        return new ImportedBookResult(bookSummary, bookMetaDataSummary, chapterSummaries);
+        final var result = new ImportedBookResult(bookSummary, bookMetaDataSummary, chapterSummaries);
+
+        persistImportedBook(result, bookContents);
+
+        return result;
+    }
+
+    private void persistImportedBook(final ImportedBookResult result, final String bookContents) {
+        final BookSummaryResult bookSummary = result.bookSummary();
+        final BookMetadataAnalysis metaAnalysis = result.bookMetadataAnalysis();
+        final BookMetadataAnalysisResult metaResult = metaAnalysis.bookMetadataAnalysisResult();
+
+        final DocumentsRecord doc = dsl.newRecord(Tables.DOCUMENTS);
+        doc.setTitle(bookSummary.title());
+        doc.setType("book");
+        doc.setSummary(bookSummary.summary());
+        doc.setCharacters(toArray(bookSummary.characters()));
+        doc.setFullText(bookContents);
+        doc.setYearPublished(bookSummary.yearPublished() != null ? bookSummary.yearPublished().intValue() : null);
+        doc.setAuthorName(bookSummary.authorName());
+        doc.setPossibleQuestionsThisAnswers(toArray(bookSummary.possibleQuestionsThisAnswers()));
+        doc.store();
+
+        final Long documentId = doc.getId();
+        LOG.infof("(persistImportedBook) inserted document id=%d", documentId);
+
+        final BookMetadataRecord meta = dsl.newRecord(Tables.BOOK_METADATA);
+        meta.setDocumentId(documentId);
+        meta.setSummary(metaResult.summary());
+        meta.setTitle(metaResult.title());
+        meta.setAuthorName(metaResult.authorName());
+        meta.setPublisher(metaResult.publisher());
+        meta.setYearPublished(metaResult.yearPublished() != null ? metaResult.yearPublished().intValue() : null);
+        meta.setCharacters(toArray(metaResult.characters()));
+        meta.setPossibleQuestionsThisAnswers(toArray(metaResult.possibleQuestionsThisAnswers()));
+        meta.setHasSummaryInformation(metaResult.hasSummaryInformation());
+        meta.setFullTextFront(metaAnalysis.fullFrontText());
+        meta.setFullTextBack(metaAnalysis.fullBackText());
+        meta.store();
+
+        LOG.infof("(persistImportedBook) inserted book_metadata id=%d", meta.getId());
+
+        for (final ChapterSummary chapter : result.chapterSummaries()) {
+            final ChapterSummaryResult chpResult = chapter.chapterSummaryResult();
+
+            final ChaptersRecord chpRecord = dsl.newRecord(Tables.CHAPTERS);
+            chpRecord.setDocumentId(documentId);
+            chpRecord.setSummary(chpResult.summary());
+            chpRecord.setCharacters(toArray(chpResult.characters()));
+            chpRecord.setFullText(chapter.fullChapterText());
+            chpRecord.setPossibleQuestionsThisAnswers(toArray(chpResult.possibleQuestionsThisAnswers()));
+            chpRecord.store();
+
+            final Long chapterId = chpRecord.getId();
+            LOG.infof("(persistImportedBook) inserted chapter id=%d", chapterId);
+
+            for (final Segment segment : chapter.segments()) {
+                final SegmentSummaryResult segResult = segment.segmentSummary();
+
+                final SectionsRecord secRecord = dsl.newRecord(Tables.SECTIONS);
+                secRecord.setChapterId(chapterId);
+                secRecord.setSummary(segResult.summary());
+                secRecord.setCharacters(toArray(segResult.characters()));
+                secRecord.setFullText(segment.fullSegment());
+                secRecord.setPossibleQuestionsThisAnswers(toArray(segResult.possibleQuestionsThisAnswers()));
+                secRecord.store();
+            }
+
+            LOG.infof("(persistImportedBook) inserted %d sections for chapter id=%d",
+                    chapter.segments().size(), chapterId);
+        }
+
+        LOG.infof("(persistImportedBook) persistence complete for document id=%d", documentId);
+    }
+
+    private static String[] toArray(final List<String> list) {
+        return list != null ? list.toArray(String[]::new) : null;
     }
 }

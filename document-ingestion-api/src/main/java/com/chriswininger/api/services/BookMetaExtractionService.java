@@ -1,5 +1,6 @@
 package com.chriswininger.api.services;
 
+import com.chriswininger.api.dto.BookMetadataAnalysis;
 import com.chriswininger.api.dto.inferenceresults.BookMetadataAnalysisResult;
 import com.chriswininger.api.services.inferenceapi.OllamaApiService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -136,12 +137,15 @@ public class BookMetaExtractionService {
         this.ollamaApiService = ollamaApiService;
     }
 
-    public BookMetadataAnalysisResult extractMetaDataFromTheBook(
+    public BookMetadataAnalysis extractMetaDataFromTheBook(
             final String fullBook,
             final Pattern chapterSplitter
     ) throws IOException, InterruptedException {
-        final String frontAnalysis = extractMetaDataFromTheFrontOfTheBook(fullBook, chapterSplitter);
-        final String backAnalysis = extractMetaDataFromTheBackTheBook(fullBook, frontAnalysis);
+        final String frontText = extractFrontText(fullBook, chapterSplitter);
+        final String frontAnalysis = analyzeFrontText(frontText);
+
+        final String backText = takeSentencesFromBack(fullBook, 40);
+        final String backAnalysis = analyzeBackText(backText, frontAnalysis);
 
         final String userMessage = """
                 ===== Analysis of Front ======
@@ -155,27 +159,30 @@ public class BookMetaExtractionService {
                 Based on the above analyses of both front and back please respond with structured JSON.
         """.formatted(frontAnalysis, backAnalysis).trim();
 
-        return ollamaApiService.callOllamaStructuredResponse(
+        final BookMetadataAnalysisResult result = ollamaApiService.callOllamaStructuredResponse(
                 SYSTEM_MESSAGE_STRUCTURE.formatted(ollamaApiService.buildExampleJson(BookMetadataAnalysisResult.class)),
                 userMessage, true, BookMetadataAnalysisResult.class);
+
+        return new BookMetadataAnalysis(frontText, backText, result);
     }
 
-    public String extractMetaDataFromTheFrontOfTheBook(
+    private String extractFrontText(
             final String fullBook,
             final Pattern chapterSplitter
-    ) throws IOException, InterruptedException {
-        final String intro;
+    ) {
         if (Objects.nonNull(chapterSplitter)) {
             final var chapters = chapterService.splitIntoChapters(fullBook, chapterSplitter);
-
-            LOG.infof("(extractMetaDataFromTheFrontOfTheBook) chapterSplitter found '%s' chapter(s)", chapters.size());
-            intro = !chapters.isEmpty()
-                    ? chapterService.splitIntoChapters(fullBook, chapterSplitter).getFirst().content()
-                    : takeSentencesFromFront(fullBook, 40);;
-        } else {
-            intro = takeSentencesFromFront(fullBook, 40);
+            LOG.infof("(extractFrontText) chapterSplitter found '%s' chapter(s)", chapters.size());
+            return !chapters.isEmpty()
+                    ? chapters.getFirst().content()
+                    : takeSentencesFromFront(fullBook, 40);
         }
+        return takeSentencesFromFront(fullBook, 40);
+    }
 
+    private String analyzeFrontText(
+            final String frontText
+    ) throws IOException, InterruptedException {
         final String userMessage = """
                 First half of the book containing the intro and possibly a bit of the first chapter. Focus only on
                 the contents before the start of the first chapter.
@@ -183,16 +190,14 @@ public class BookMetaExtractionService {
                 =======================
                 %s
                 =======================
-                """.formatted(intro).trim();
+                """.formatted(frontText).trim();
         return ollamaApiService.callOllamaPlainTextResponse(SYSTEM_PROMPT_FRONT, userMessage, true);
     }
 
-    public String extractMetaDataFromTheBackTheBook(
-            final String fullBook, final String introSummary
+    private String analyzeBackText(
+            final String backText, final String frontAnalysis
     ) throws IOException, InterruptedException {
-        final String ending = takeSentencesFromBack(fullBook, 40);
-
-        final String systemMessage = SYSTEM_PROMPT_BACK.formatted(introSummary);
+        final String systemMessage = SYSTEM_PROMPT_BACK.formatted(frontAnalysis);
         final String userMessage = """
                 Back half of the book containing postscript, publisher information, etc. This may also contain a bit of
                 the final chapter. Focus only on the contents before the start of the first chapter.
@@ -200,7 +205,7 @@ public class BookMetaExtractionService {
                 =======================
                 %s
                 =======================
-                """.formatted(ending);
+                """.formatted(backText);
 
         return ollamaApiService.callOllamaPlainTextResponse(systemMessage, userMessage, true);
     }

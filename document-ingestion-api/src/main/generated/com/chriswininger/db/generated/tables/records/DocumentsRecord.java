@@ -132,6 +132,48 @@ public class DocumentsRecord extends UpdatableRecordImpl<DocumentsRecord> {
         return (OffsetDateTime) get(7);
     }
 
+    /**
+     * Setter for <code>documents.year_published</code>.
+     */
+    public void setYearPublished(Integer value) {
+        set(8, value);
+    }
+
+    /**
+     * Getter for <code>documents.year_published</code>.
+     */
+    public Integer getYearPublished() {
+        return (Integer) get(8);
+    }
+
+    /**
+     * Setter for <code>documents.author_name</code>.
+     */
+    public void setAuthorName(String value) {
+        set(9, value);
+    }
+
+    /**
+     * Getter for <code>documents.author_name</code>.
+     */
+    public String getAuthorName() {
+        return (String) get(9);
+    }
+
+    /**
+     * Setter for <code>documents.possible_questions_this_answers</code>.
+     */
+    public void setPossibleQuestionsThisAnswers(String[] value) {
+        set(10, value);
+    }
+
+    /**
+     * Getter for <code>documents.possible_questions_this_answers</code>.
+     */
+    public String[] getPossibleQuestionsThisAnswers() {
+        return (String[]) get(10);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -155,7 +197,7 @@ public class DocumentsRecord extends UpdatableRecordImpl<DocumentsRecord> {
     /**
      * Create a detached, initialised DocumentsRecord
      */
-    public DocumentsRecord(Long id, String title, String type, String summary, String[] characters, String fullText, OffsetDateTime createdAt, OffsetDateTime updatedAt) {
+    public DocumentsRecord(Long id, String title, String type, String summary, String[] characters, String fullText, OffsetDateTime createdAt, OffsetDateTime updatedAt, Integer yearPublished, String authorName, String[] possibleQuestionsThisAnswers) {
         super(Documents.DOCUMENTS);
 
         setId(id);
@@ -166,6 +208,9 @@ public class DocumentsRecord extends UpdatableRecordImpl<DocumentsRecord> {
         setFullText(fullText);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
+        setYearPublished(yearPublished);
+        setAuthorName(authorName);
+        setPossibleQuestionsThisAnswers(possibleQuestionsThisAnswers);
         resetTouchedOnNotNull();
     }
 }

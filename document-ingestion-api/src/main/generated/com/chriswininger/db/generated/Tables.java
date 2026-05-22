@@ -4,6 +4,7 @@
 package com.chriswininger.db.generated;
 
 
+import com.chriswininger.db.generated.tables.BookMetadata;
 import com.chriswininger.db.generated.tables.Chapters;
 import com.chriswininger.db.generated.tables.Documents;
 import com.chriswininger.db.generated.tables.Sections;
@@ -14,6 +15,11 @@ import com.chriswininger.db.generated.tables.Sections;
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes", "this-escape" })
 public class Tables {
+
+    /**
+     * The table <code>book_metadata</code>.
+     */
+    public static final BookMetadata BOOK_METADATA = BookMetadata.BOOK_METADATA;
 
     /**
      * The table <code>chapters</code>.

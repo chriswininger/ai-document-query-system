@@ -4,6 +4,7 @@
 package com.chriswininger.db.generated;
 
 
+import com.chriswininger.db.generated.tables.BookMetadata;
 import com.chriswininger.db.generated.tables.Chapters;
 import com.chriswininger.db.generated.tables.Documents;
 import com.chriswininger.db.generated.tables.Sections;
@@ -29,6 +30,11 @@ public class DefaultSchema extends SchemaImpl {
      * The reference instance of <code>DEFAULT_SCHEMA</code>
      */
     public static final DefaultSchema DEFAULT_SCHEMA = new DefaultSchema();
+
+    /**
+     * The table <code>book_metadata</code>.
+     */
+    public final BookMetadata BOOK_METADATA = BookMetadata.BOOK_METADATA;
 
     /**
      * The table <code>chapters</code>.
@@ -61,6 +67,7 @@ public class DefaultSchema extends SchemaImpl {
     @Override
     public final List<Table<?>> getTables() {
         return Arrays.asList(
+            BookMetadata.BOOK_METADATA,
             Chapters.CHAPTERS,
             Documents.DOCUMENTS,
             Sections.SECTIONS

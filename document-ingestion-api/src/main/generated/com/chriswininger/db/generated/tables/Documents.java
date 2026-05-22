@@ -6,6 +6,7 @@ package com.chriswininger.db.generated.tables;
 
 import com.chriswininger.db.generated.DefaultSchema;
 import com.chriswininger.db.generated.Keys;
+import com.chriswininger.db.generated.tables.BookMetadata.BookMetadataPath;
 import com.chriswininger.db.generated.tables.Chapters.ChaptersPath;
 import com.chriswininger.db.generated.tables.records.DocumentsRecord;
 
@@ -97,6 +98,21 @@ public class Documents extends TableImpl<DocumentsRecord> {
      */
     public final TableField<DocumentsRecord, OffsetDateTime> UPDATED_AT = createField(DSL.name("updated_at"), SQLDataType.TIMESTAMPWITHTIMEZONE(6).nullable(false).defaultValue(DSL.field(DSL.raw("CURRENT_TIMESTAMP"), SQLDataType.TIMESTAMPWITHTIMEZONE)), this, "");
 
+    /**
+     * The column <code>documents.year_published</code>.
+     */
+    public final TableField<DocumentsRecord, Integer> YEAR_PUBLISHED = createField(DSL.name("year_published"), SQLDataType.INTEGER, this, "");
+
+    /**
+     * The column <code>documents.author_name</code>.
+     */
+    public final TableField<DocumentsRecord, String> AUTHOR_NAME = createField(DSL.name("author_name"), SQLDataType.VARCHAR(255), this, "");
+
+    /**
+     * The column <code>documents.possible_questions_this_answers</code>.
+     */
+    public final TableField<DocumentsRecord, String[]> POSSIBLE_QUESTIONS_THIS_ANSWERS = createField(DSL.name("possible_questions_this_answers"), SQLDataType.CLOB.array(), this, "");
+
     private Documents(Name alias, Table<DocumentsRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }
@@ -172,6 +188,19 @@ public class Documents extends TableImpl<DocumentsRecord> {
     @Override
     public UniqueKey<DocumentsRecord> getPrimaryKey() {
         return Keys.CONSTRAINT_3;
+    }
+
+    private transient BookMetadataPath _bookMetadata;
+
+    /**
+     * Get the implicit to-many join path to the <code>book_metadata</code>
+     * table
+     */
+    public BookMetadataPath bookMetadata() {
+        if (_bookMetadata == null)
+            _bookMetadata = new BookMetadataPath(this, null, Keys.CONSTRAINT_389D.getInverseKey());
+
+        return _bookMetadata;
     }
 
     private transient ChaptersPath _chapters;
