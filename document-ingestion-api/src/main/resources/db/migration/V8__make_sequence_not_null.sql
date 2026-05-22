@@ -1,0 +1,2 @@
+ALTER TABLE chapters ALTER COLUMN sequence SET NOT NULL;
+ALTER TABLE sections ALTER COLUMN sequence SET NOT NULL;

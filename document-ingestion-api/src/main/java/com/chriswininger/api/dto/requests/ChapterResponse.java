@@ -6,6 +6,8 @@ import java.util.List;
 public record ChapterResponse(
         Long id,
         Long documentId,
+        String chapterTitle,
+        Integer sequence,
         String summary,
         List<String> characters,
         String fullText,

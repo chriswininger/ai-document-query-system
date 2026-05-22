@@ -102,6 +102,16 @@ public class Chapters extends TableImpl<ChaptersRecord> {
      */
     public final TableField<ChaptersRecord, OffsetDateTime> UPDATED_AT = createField(DSL.name("updated_at"), SQLDataType.TIMESTAMPWITHTIMEZONE(6).nullable(false).defaultValue(DSL.field(DSL.raw("CURRENT_TIMESTAMP"), SQLDataType.TIMESTAMPWITHTIMEZONE)), this, "");
 
+    /**
+     * The column <code>chapters.chapter_title</code>.
+     */
+    public final TableField<ChaptersRecord, String> CHAPTER_TITLE = createField(DSL.name("chapter_title"), SQLDataType.VARCHAR(255), this, "");
+
+    /**
+     * The column <code>chapters.sequence</code>.
+     */
+    public final TableField<ChaptersRecord, Integer> SEQUENCE = createField(DSL.name("sequence"), SQLDataType.INTEGER.nullable(false), this, "");
+
     private Chapters(Name alias, Table<ChaptersRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }

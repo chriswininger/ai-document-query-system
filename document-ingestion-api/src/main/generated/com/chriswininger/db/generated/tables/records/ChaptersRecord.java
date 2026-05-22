@@ -132,6 +132,34 @@ public class ChaptersRecord extends UpdatableRecordImpl<ChaptersRecord> {
         return (OffsetDateTime) get(7);
     }
 
+    /**
+     * Setter for <code>chapters.chapter_title</code>.
+     */
+    public void setChapterTitle(String value) {
+        set(8, value);
+    }
+
+    /**
+     * Getter for <code>chapters.chapter_title</code>.
+     */
+    public String getChapterTitle() {
+        return (String) get(8);
+    }
+
+    /**
+     * Setter for <code>chapters.sequence</code>.
+     */
+    public void setSequence(Integer value) {
+        set(9, value);
+    }
+
+    /**
+     * Getter for <code>chapters.sequence</code>.
+     */
+    public Integer getSequence() {
+        return (Integer) get(9);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -155,7 +183,7 @@ public class ChaptersRecord extends UpdatableRecordImpl<ChaptersRecord> {
     /**
      * Create a detached, initialised ChaptersRecord
      */
-    public ChaptersRecord(Long id, Long documentId, String summary, String[] characters, String fullText, String[] possibleQuestionsThisAnswers, OffsetDateTime createdAt, OffsetDateTime updatedAt) {
+    public ChaptersRecord(Long id, Long documentId, String summary, String[] characters, String fullText, String[] possibleQuestionsThisAnswers, OffsetDateTime createdAt, OffsetDateTime updatedAt, String chapterTitle, Integer sequence) {
         super(Chapters.CHAPTERS);
 
         setId(id);
@@ -166,6 +194,8 @@ public class ChaptersRecord extends UpdatableRecordImpl<ChaptersRecord> {
         setPossibleQuestionsThisAnswers(possibleQuestionsThisAnswers);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
+        setChapterTitle(chapterTitle);
+        setSequence(sequence);
         resetTouchedOnNotNull();
     }
 }

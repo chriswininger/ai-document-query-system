@@ -92,7 +92,9 @@ public class ImportBookService {
             LOG.infof("Done Segment Summarization: chapter %d -> %d segments", i, segments.size());
 
             chapterSummaries.add(new ChapterSummary(
+                    i,
                     chapterSummaryResults.get(i),
+                    summarizedChapters.get(i).label(),
                     summarizedChapters.get(i).content(),
                     segments
             ));
@@ -145,6 +147,8 @@ public class ImportBookService {
 
             final ChaptersRecord chpRecord = dsl.newRecord(Tables.CHAPTERS);
             chpRecord.setDocumentId(documentId);
+            chpRecord.setChapterTitle(chapter.chapterTitle());
+            chpRecord.setSequence(chapter.sequence());
             chpRecord.setSummary(chpResult.summary());
             chpRecord.setCharacters(toArray(chpResult.characters()));
             chpRecord.setFullText(chapter.fullChapterText());
@@ -152,13 +156,14 @@ public class ImportBookService {
             chpRecord.store();
 
             final Long chapterId = chpRecord.getId();
-            LOG.infof("(persistImportedBook) inserted chapter id=%d", chapterId);
+            LOG.infof("(persistImportedBook) inserted chapter id=%d (sequence=%d)", chapterId, chapter.sequence());
 
             for (final Segment segment : chapter.segments()) {
                 final SegmentSummaryResult segResult = segment.segmentSummary();
 
                 final SectionsRecord secRecord = dsl.newRecord(Tables.SECTIONS);
                 secRecord.setChapterId(chapterId);
+                secRecord.setSequence(segment.sequence());
                 secRecord.setSummary(segResult.summary());
                 secRecord.setCharacters(toArray(segResult.characters()));
                 secRecord.setFullText(segment.fullSegment());

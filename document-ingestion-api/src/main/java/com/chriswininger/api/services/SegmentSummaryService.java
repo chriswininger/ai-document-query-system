@@ -84,7 +84,7 @@ public class SegmentSummaryService {
             LOG.infof("(summarizeSegments) summarizing segment %d of %d", i + 1, chunks.size());
             final var summary = summarizeSegment(chunks.get(i), chapterSummary, bookSummary);
             LOG.infof("(summarizeSegments) summary: %s", summary);
-            results.add(new Segment(chunks.get(i), summary));
+            results.add(new Segment(i, chunks.get(i), summary));
         }
 
         return results;

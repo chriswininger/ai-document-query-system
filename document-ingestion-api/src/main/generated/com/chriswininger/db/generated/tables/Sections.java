@@ -101,6 +101,11 @@ public class Sections extends TableImpl<SectionsRecord> {
      */
     public final TableField<SectionsRecord, OffsetDateTime> UPDATED_AT = createField(DSL.name("updated_at"), SQLDataType.TIMESTAMPWITHTIMEZONE(6).nullable(false).defaultValue(DSL.field(DSL.raw("CURRENT_TIMESTAMP"), SQLDataType.TIMESTAMPWITHTIMEZONE)), this, "");
 
+    /**
+     * The column <code>sections.sequence</code>.
+     */
+    public final TableField<SectionsRecord, Integer> SEQUENCE = createField(DSL.name("sequence"), SQLDataType.INTEGER.nullable(false), this, "");
+
     private Sections(Name alias, Table<SectionsRecord> aliased) {
         this(alias, aliased, (Field<?>[]) null, null);
     }

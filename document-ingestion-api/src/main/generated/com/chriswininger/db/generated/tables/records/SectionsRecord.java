@@ -132,6 +132,20 @@ public class SectionsRecord extends UpdatableRecordImpl<SectionsRecord> {
         return (OffsetDateTime) get(7);
     }
 
+    /**
+     * Setter for <code>sections.sequence</code>.
+     */
+    public void setSequence(Integer value) {
+        set(8, value);
+    }
+
+    /**
+     * Getter for <code>sections.sequence</code>.
+     */
+    public Integer getSequence() {
+        return (Integer) get(8);
+    }
+
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -155,7 +169,7 @@ public class SectionsRecord extends UpdatableRecordImpl<SectionsRecord> {
     /**
      * Create a detached, initialised SectionsRecord
      */
-    public SectionsRecord(Long id, Long chapterId, String summary, String[] characters, String fullText, String[] possibleQuestionsThisAnswers, OffsetDateTime createdAt, OffsetDateTime updatedAt) {
+    public SectionsRecord(Long id, Long chapterId, String summary, String[] characters, String fullText, String[] possibleQuestionsThisAnswers, OffsetDateTime createdAt, OffsetDateTime updatedAt, Integer sequence) {
         super(Sections.SECTIONS);
 
         setId(id);
@@ -166,6 +180,7 @@ public class SectionsRecord extends UpdatableRecordImpl<SectionsRecord> {
         setPossibleQuestionsThisAnswers(possibleQuestionsThisAnswers);
         setCreatedAt(createdAt);
         setUpdatedAt(updatedAt);
+        setSequence(sequence);
         resetTouchedOnNotNull();
     }
 }

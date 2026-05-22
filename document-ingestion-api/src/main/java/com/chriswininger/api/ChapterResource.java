@@ -67,6 +67,8 @@ public class ChapterResource {
         return new ChapterResponse(
                 record.getId(),
                 record.getDocumentId(),
+                record.getChapterTitle(),
+                record.getSequence(),
                 record.getSummary(),
                 record.getCharacters() != null ? Arrays.asList(record.getCharacters()) : List.of(),
                 includeFullText ? record.getFullText() : null,
