@@ -1,12 +1,11 @@
 package com.chriswininger.api;
 
+import com.chriswininger.api.dto.inferenceresults.BookSummaryResult;
 import com.chriswininger.api.dto.inferenceresults.ChapterSummary;
-import com.chriswininger.api.dto.inferenceresults.BookMetadataAnalysisResult;
 import com.chriswininger.api.dto.requests.SubmitDocumentRequest;
 import com.chriswininger.api.services.BookMetaExtractionService;
+import com.chriswininger.api.services.BookSummaryService;
 import com.chriswininger.api.services.ChapterService;
-import com.chriswininger.api.services.ChapterSummaryAiServiceDirect;
-import com.chriswininger.api.services.SummarySearchService;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -33,12 +32,16 @@ public class DocumentResource {
 
     private final BookMetaExtractionService bookMetaExtractionService;
 
+    private final BookSummaryService bookSummaryService;
+
     public DocumentResource(
             final ChapterService chapterService,
-            final BookMetaExtractionService bookMetaExtractionService
+            final BookMetaExtractionService bookMetaExtractionService,
+            final BookSummaryService bookSummaryService
     ) {
         this.chapterService = chapterService;
         this.bookMetaExtractionService = bookMetaExtractionService;
+        this.bookSummaryService = bookSummaryService;
     }
 
     @POST
@@ -82,7 +85,7 @@ public class DocumentResource {
     @Path("/submit-document")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public BookMetadataAnalysisResult submitDocument(SubmitDocumentRequest request) throws IOException, InterruptedException {
+    public BookSummaryResult submitDocument(SubmitDocumentRequest request) throws IOException, InterruptedException {
         final String bookContents = request.document();
         LOG.infof("POST /rest/v1/submit-document — document size: %d bytes", bookContents.length());
 
@@ -99,13 +102,9 @@ public class DocumentResource {
         for (int i = 0; i < chapters.size(); i++) {
             final long startTime = System.currentTimeMillis();
             if ("Intro".equals(chapters.get(i).label())) {
-                // skip intro
                 continue;
             }
 
-            // TODO: We could include just a tiny bit of the previous chapter
-            // that would cathc the preview chapter issue, we could move this loop
-            // into the service
             LOG.infof("==== Start Summarizing Chapter: [%s] -> %s =====", i, chapters.get(i).label());
             final var chpSummary = chapterService.summarizeChapter(chapters.get(i));
             LOG.infof("Done Summarizing Chapter: %s -- %s -> took %s ms",
@@ -116,7 +115,12 @@ public class DocumentResource {
             chapterSummaries.add(chpSummary);
         }
 
-        return bookMetaDataSummary; // Response.accepted(new SubmitDocumentResponse("success", summary)).build();
+        final String frontBackSummary = bookMetaDataSummary.summary();
+        final List<String> chapterSummaryTexts = chapterSummaries.stream()
+                .map(ChapterSummary::summary)
+                .toList();
+
+        return bookSummaryService.summarizeBook(frontBackSummary, chapterSummaryTexts);
     }
 
     private String toSafeFileName(String input) {
