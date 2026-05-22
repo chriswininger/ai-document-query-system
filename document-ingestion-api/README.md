@@ -116,6 +116,17 @@ CDI repository beans in `com.chriswininger.repository` provide typed read/write 
 
 A `DSLContextProducer` bean in `com.chriswininger.db` wires the Quarkus-managed Agroal datasource into jOOQ's `DSLContext` with `SQLDialect.POSTGRES`.
 
+## API Documentation (Swagger UI)
+
+The project includes [SmallRye OpenAPI](https://quarkus.io/guides/openapi-swaggerui) which auto-generates an OpenAPI spec from the JAX-RS endpoints and serves an interactive Swagger UI.
+
+When running in dev mode (`./gradlew quarkusDev`):
+
+- **Swagger UI**: <http://localhost:8080/q/swagger-ui>
+- **OpenAPI spec**: <http://localhost:8080/q/openapi>
+
+Swagger UI is enabled automatically in dev mode. No additional configuration or annotations are required.
+
 ## Provided Code
 
 ### REST
@@ -123,3 +134,13 @@ A `DSLContextProducer` bean in `com.chriswininger.db` wires the Quarkus-managed 
 Easily start your REST Web Services
 
 [Related guide section...](https://quarkus.io/guides/getting-started-reactive#reactive-jax-rs-resources)
+
+## Notes
+
+* I need add sequence to the chapters and sections for sort and labels for chapter title
+* For the search flow one options might be let an agent with mcp access gather a list of chapters that might answer the
+  question
+* Fetch those chapters in full, pass each to an agent tasked with extracting any information relevant to answering the question
+* Finally pass that forward to generate the response
+* We can maintain a chat history for the main converation but it won't need to include all the informatin gathered from
+  background agents
