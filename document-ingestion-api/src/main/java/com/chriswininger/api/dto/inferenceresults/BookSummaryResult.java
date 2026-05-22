@@ -25,8 +25,5 @@ public record BookSummaryResult(
         List<String> characters,
 
         @InferenceDescription("A list of questions a curious reader might have that are directly answered by the material analyzed.")
-        List<String> possibleQuestionsThisAnswers,
-
-        @InferenceDescription("Did contents supplied for analysis actually contain summary information")
-        Boolean hasSummaryInformation
+        List<String> possibleQuestionsThisAnswers
 ) {}

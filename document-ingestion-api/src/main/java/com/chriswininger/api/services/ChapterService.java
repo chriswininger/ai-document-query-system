@@ -1,6 +1,6 @@
 package com.chriswininger.api.services;
 
-import com.chriswininger.api.dto.inferenceresults.ChapterSummary;
+import com.chriswininger.api.dto.inferenceresults.ChapterSummaryResult;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -17,7 +17,7 @@ public class ChapterService {
         this.chapterSummaryAiService = chapterSummaryAiService;
     }
 
-    public ChapterSummary summarizeChapter(final Chapter chapter) {
+    public ChapterSummaryResult summarizeChapter(final Chapter chapter) {
         return chapterSummaryAiService.summarize(chapter.label(), chapter.content());
     }
 

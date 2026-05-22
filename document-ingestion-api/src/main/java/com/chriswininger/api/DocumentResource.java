@@ -1,11 +1,9 @@
 package com.chriswininger.api;
 
-import com.chriswininger.api.dto.inferenceresults.BookSummaryResult;
-import com.chriswininger.api.dto.inferenceresults.ChapterSummary;
+import com.chriswininger.api.dto.ImportedBookResult;
 import com.chriswininger.api.dto.requests.SubmitDocumentRequest;
-import com.chriswininger.api.services.BookMetaExtractionService;
-import com.chriswininger.api.services.BookSummaryService;
 import com.chriswininger.api.services.ChapterService;
+import com.chriswininger.api.services.ImportBookService;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -18,8 +16,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -30,18 +26,14 @@ public class DocumentResource {
 
     private final ChapterService chapterService;
 
-    private final BookMetaExtractionService bookMetaExtractionService;
-
-    private final BookSummaryService bookSummaryService;
+    private final ImportBookService importBookService;
 
     public DocumentResource(
             final ChapterService chapterService,
-            final BookMetaExtractionService bookMetaExtractionService,
-            final BookSummaryService bookSummaryService
+            final ImportBookService importBookService
     ) {
         this.chapterService = chapterService;
-        this.bookMetaExtractionService = bookMetaExtractionService;
-        this.bookSummaryService = bookSummaryService;
+        this.importBookService = importBookService;
     }
 
     @POST
@@ -85,42 +77,13 @@ public class DocumentResource {
     @Path("/submit-document")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public BookSummaryResult submitDocument(SubmitDocumentRequest request) throws IOException, InterruptedException {
+    public ImportedBookResult submitDocument(SubmitDocumentRequest request) throws IOException, InterruptedException {
         final String bookContents = request.document();
         LOG.infof("POST /rest/v1/submit-document — document size: %d bytes", bookContents.length());
 
         final Pattern chapterSplitPattern = getChapterSplitPattern(request);
 
-        LOG.infof("POST /rest/v1/submit-document — Summarizing based on front and back of book");
-        final var bookMetaDataSummary = bookMetaExtractionService.extractMetaDataFromTheBook(bookContents, chapterSplitPattern);
-        LOG.infof("POST /rest/v1/submit-document — bookMetaDataSummary %s", bookMetaDataSummary);
-
-        final var chapters = chapterService.splitIntoChapters(bookContents, chapterSplitPattern);
-        LOG.infof("POST /rest/v1/submit-document — num chapters", chapters.size());
-
-        final List<ChapterSummary> chapterSummaries = new ArrayList<>();
-        for (int i = 0; i < chapters.size(); i++) {
-            final long startTime = System.currentTimeMillis();
-            if ("Intro".equals(chapters.get(i).label())) {
-                continue;
-            }
-
-            LOG.infof("==== Start Summarizing Chapter: [%s] -> %s =====", i, chapters.get(i).label());
-            final var chpSummary = chapterService.summarizeChapter(chapters.get(i));
-            LOG.infof("Done Summarizing Chapter: %s -- %s -> took %s ms",
-                    i, chapters.get(i).label(), System.currentTimeMillis() - startTime);
-            LOG.infof("summary: '%s'", chpSummary);
-            LOG.info("=============================");
-
-            chapterSummaries.add(chpSummary);
-        }
-
-        final String frontBackSummary = bookMetaDataSummary.summary();
-        final List<String> chapterSummaryTexts = chapterSummaries.stream()
-                .map(ChapterSummary::summary)
-                .toList();
-
-        return bookSummaryService.summarizeBook(frontBackSummary, chapterSummaryTexts);
+        return importBookService.importBook(bookContents, chapterSplitPattern);
     }
 
     private String toSafeFileName(String input) {

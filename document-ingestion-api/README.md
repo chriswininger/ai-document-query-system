@@ -70,7 +70,7 @@ This starts a `pgvector/pgvector:pg17` container on port `5436` with:
 To verify the database is running and migrations have applied:
 
 ```shell script
-PGPASSWORD=xxx psql -h localhost -p 5436 -U postgres -d spring-ai-demo-db -c "\dt"
+PGPASSWORD=xxx psql -h localhost -p 5436 -U postgres -d document-ingestion-db -c "\dt"
 ```
 
 ### Migrations (Flyway)

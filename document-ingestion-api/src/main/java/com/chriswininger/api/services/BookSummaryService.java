@@ -48,9 +48,6 @@ public class BookSummaryService {
         as a whole. Phrase them as natural questions. Include both general questions ("What is
         this book about?") and specific ones. List one question per line.
 
-        Has Summary Information:
-        Was there enough content to produce a meaningful summary?
-
         Respond in plain text only. Do NOT use JSON, markdown, or code fences.
         """;
 
@@ -63,8 +60,7 @@ public class BookSummaryService {
          "Publisher",
          "Year Published",
          "Characters",
-         "POSSIBLE QUESTIONS THIS ANSWERS",
-         "Has Summary Information"
+         "POSSIBLE QUESTIONS THIS ANSWERS"
 
         Your job is to convert this text into a JSON object.
 

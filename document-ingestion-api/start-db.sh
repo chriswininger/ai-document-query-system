@@ -9,5 +9,5 @@ docker run --name document-query-db \
   -v "$data_dir/db":"/var/lib/postgresql/data" \
   -e POSTGRES_USER=postgres \
   -e POSTGRES_PASSWORD=xxx \
-  -e POSTGRES_DB=spring-ai-demo-db \
+  -e POSTGRES_DB=document-ingestion-db \
   -d pgvector/pgvector:pg17

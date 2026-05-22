@@ -21,7 +21,7 @@ source /usr/local/sdkman/bin/sdkman-init.sh && ./gradlew <task>
 
 The PostgreSQL database runs on the **host only** — it is NOT reachable from inside the dev container.
 
-- Port: `5436`, user: `postgres`, password: `xxx`, database: `spring-ai-demo-db`
+- Port: `5436`, user: `postgres`, password: `xxx`, database: `document-ingestion-db`
 - Start it on the host with: `bash start-db.sh`
 - Never attempt to start the DB or run Flyway migrations from inside the container
 - If a DB connection error occurs, report it to the user and ask them to run it on the host

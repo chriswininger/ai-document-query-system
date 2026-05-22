@@ -4,7 +4,7 @@ import dev.langchain4j.model.output.structured.Description;
 
 import java.util.List;
 
-public record ChapterSummary(
+public record ChapterSummaryResult(
         @Description("A concise summary of the chapter's content")
         String summary,
         @Description("Names of characters who appear or are mentioned in this chapter")
@@ -12,8 +12,8 @@ public record ChapterSummary(
         @Description("Questions that a reader might have that this chapter answers")
         List<String> possibleQuestionsThisAnswers
 ) {
-        public ChapterSummary withCharacters(final List<String> characters) {
-                return new ChapterSummary(
+        public ChapterSummaryResult withCharacters(final List<String> characters) {
+                return new ChapterSummaryResult(
                         this.summary(),
                         characters,
                         this.possibleQuestionsThisAnswers());

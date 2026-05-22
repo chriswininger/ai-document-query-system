@@ -1,6 +1,6 @@
 package com.chriswininger.api.services;
 
-import com.chriswininger.api.dto.inferenceresults.ChapterSummary;
+import com.chriswininger.api.dto.inferenceresults.ChapterSummaryResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -69,7 +69,7 @@ public class ChapterSummaryAiServiceDirect {
     @ConfigProperty(name = "ollama.timeout-seconds", defaultValue = "300")
     int timeoutSeconds;
 
-    public ChapterSummary summarize(final String label, final String content) {
+    public ChapterSummaryResult summarize(final String label, final String content) {
         try {
             // Pass 1: summarize into plain text (avoids structured-output repetition loops)
             final String plainTextSummary = summarizePlainText(label, content);
@@ -179,10 +179,10 @@ public class ChapterSummaryAiServiceDirect {
         return objectMapper.writeValueAsString(root);
     }
 
-    private ChapterSummary parseResponse(final String responseBody) throws IOException {
+    private ChapterSummaryResult parseResponse(final String responseBody) throws IOException {
         final JsonNode outer = objectMapper.readTree(responseBody);
         final String innerJson = outer.path("message").path("content").asText();
-        final ChapterSummary chapterSummary = objectMapper.readValue(innerJson, ChapterSummary.class);
+        final ChapterSummaryResult chapterSummary = objectMapper.readValue(innerJson, ChapterSummaryResult.class);
 
         // deduplicate characters
         final Set<String> deduplicatedCharacters = new HashSet<>(
