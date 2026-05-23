@@ -24,6 +24,7 @@ dependencies {
 
     implementation("dev.langchain4j:langchain4j:1.13.1")
     implementation("dev.langchain4j:langchain4j-ollama:1.13.1")
+    implementation("dev.langchain4j:langchain4j-pgvector:1.13.1-beta23")
     implementation("org.bsc.langgraph4j:langgraph4j-core:1.8.13")
 
     implementation("io.quarkus:quarkus-jdbc-postgresql")
@@ -49,6 +50,7 @@ jooq {
         generator {
             database {
                 name = "org.jooq.meta.extensions.ddl.DDLDatabase"
+                excludes = "vector_store"
                 properties {
                     property {
                         key = "scripts"

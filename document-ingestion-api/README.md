@@ -2,6 +2,15 @@
 
 This project allows you to ingest large documents and stores them in a queryable database 
 
+## Dependencies
+
+* Ollama
+  * `ollama pull bge-m3`
+  * `ollama pull gemma4:e2b`
+  * A GPU that can support gemma4:e2b with a context window of 65536K
+* Java >= 25
+* Gradle
+
 ## Running the application in dev mode
 
 You can run your application in dev mode that enables live coding using:
@@ -137,10 +146,13 @@ Easily start your REST Web Services
 
 ## Notes
 
-* I need add sequence to the chapters and sections for sort and labels for chapter title
 * For the search flow one options might be let an agent with mcp access gather a list of chapters that might answer the
   question
 * Fetch those chapters in full, pass each to an agent tasked with extracting any information relevant to answering the question
 * Finally pass that forward to generate the response
-* We can maintain a chat history for the main converation but it won't need to include all the informatin gathered from
+* We can maintain a chat history for the main converation, but it won't need to include all the informatin gathered from
   background agents
+
+
+* TODO, API Enhancements: Add byChapter/Sequence
+* Add byDocument/all-segments paginated with full text option
