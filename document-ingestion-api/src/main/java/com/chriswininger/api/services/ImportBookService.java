@@ -13,6 +13,7 @@ import com.chriswininger.db.generated.tables.records.BookMetadataRecord;
 import com.chriswininger.db.generated.tables.records.ChaptersRecord;
 import com.chriswininger.db.generated.tables.records.DocumentsRecord;
 import com.chriswininger.db.generated.tables.records.SectionsRecord;
+import dev.langchain4j.data.document.Metadata;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.jboss.logging.Logger;
 import org.jooq.DSLContext;
@@ -21,6 +22,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class ImportBookService {
@@ -31,19 +33,22 @@ public class ImportBookService {
     private final BookSummaryService bookSummaryService;
     private final SegmentSummaryService segmentSummaryService;
     private final DSLContext dsl;
+    private final VectorStoreService vectorStoreService;
 
     public ImportBookService(
             final BookMetaExtractionService bookMetaExtractionService,
             final ChapterService chapterService,
             final BookSummaryService bookSummaryService,
             final SegmentSummaryService segmentSummaryService,
-            final DSLContext dsl
+            final DSLContext dsl,
+            final VectorStoreService vectorStoreService
     ) {
         this.bookMetaExtractionService = bookMetaExtractionService;
         this.chapterService = chapterService;
         this.bookSummaryService = bookSummaryService;
         this.segmentSummaryService = segmentSummaryService;
         this.dsl = dsl;
+        this.vectorStoreService = vectorStoreService;
     }
 
     public ImportedBookResult importBook(
@@ -169,6 +174,17 @@ public class ImportBookService {
                 secRecord.setFullText(segment.fullSegment());
                 secRecord.setPossibleQuestionsThisAnswers(toArray(segResult.possibleQuestionsThisAnswers()));
                 secRecord.store();
+
+                final Metadata metadata = new Metadata()
+                        .put("sectionId", secRecord.getId())
+                        .put("chapterId", chapterId)
+                        .put("documentId", documentId)
+                        .put("bookTitle", bookSummary.title())
+                        .put("chapterLabel", chapter.chapterTitle())
+                        .put("characters", toJsonArray(segResult.characters()))
+                        .put("possibleQuestionsThisAnswers", toJsonArray(segResult.possibleQuestionsThisAnswers()));
+
+                vectorStoreService.storeVector(segment.fullSegment(), metadata);
             }
 
             LOG.infof("(persistImportedBook) inserted %d sections for chapter id=%d",
@@ -180,5 +196,13 @@ public class ImportBookService {
 
     private static String[] toArray(final List<String> list) {
         return list != null ? list.toArray(String[]::new) : null;
+    }
+
+    private static String toJsonArray(final List<String> list) {
+        if (list == null || list.isEmpty()) return "[]";
+        final String items = list.stream()
+                .map(s -> "\"" + s.replace("\"", "\\\"") + "\"")
+                .collect(Collectors.joining(","));
+        return "[" + items + "]";
     }
 }
