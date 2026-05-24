@@ -1,5 +1,6 @@
 package com.chriswininger.api;
 
+import com.chriswininger.api.dto.requests.PagedResponse;
 import com.chriswininger.api.dto.requests.SectionResponse;
 import com.chriswininger.db.generated.Tables;
 import com.chriswininger.db.generated.tables.records.SectionsRecord;
@@ -47,21 +48,65 @@ public class SectionResource {
     @GET
     @Path("/by-document/{documentId}")
     @Produces(MediaType.APPLICATION_JSON)
-    public List<SectionResponse> listByDocument(
+    public PagedResponse<SectionResponse> listByDocument(
             @PathParam("documentId") final Long documentId,
-            @QueryParam("include_full_text") @DefaultValue("false") final boolean includeFullText
+            @QueryParam("include_full_text") @DefaultValue("false") final boolean includeFullText,
+            @QueryParam("page") @DefaultValue("0") final int page,
+            @QueryParam("page_size") @DefaultValue("20") final int pageSize
     ) {
-        LOG.infof("GET /sections/by-document/%d (include_full_text=%b)", documentId, includeFullText);
+        LOG.infof("GET /sections/by-document/%d page=%d pageSize=%d", documentId, page, pageSize);
 
-        return dsl.select(Tables.SECTIONS.fields())
+        final int totalCount = dsl.selectCount()
+                .from(Tables.SECTIONS)
+                .join(Tables.CHAPTERS).on(Tables.SECTIONS.CHAPTER_ID.eq(Tables.CHAPTERS.ID))
+                .where(Tables.CHAPTERS.DOCUMENT_ID.eq(documentId))
+                .fetchOne(0, Integer.class);
+
+        final int totalPages = (int) Math.ceil((double) totalCount / pageSize);
+
+        final List<SectionResponse> items = dsl.select(Tables.SECTIONS.fields())
                 .from(Tables.SECTIONS)
                 .join(Tables.CHAPTERS).on(Tables.SECTIONS.CHAPTER_ID.eq(Tables.CHAPTERS.ID))
                 .where(Tables.CHAPTERS.DOCUMENT_ID.eq(documentId))
                 .orderBy(Tables.CHAPTERS.SEQUENCE.asc(), Tables.SECTIONS.SEQUENCE.asc())
+                .limit(pageSize)
+                .offset((long) page * pageSize)
                 .fetchInto(SectionsRecord.class)
                 .stream()
-                .map(record -> toResponse(record, includeFullText))
+                .map(r -> toResponse(r, includeFullText))
                 .toList();
+
+        return new PagedResponse<>(
+                items,
+                totalCount,
+                page,
+                pageSize,
+                totalPages,
+                page < totalPages - 1,
+                page > 0
+        );
+    }
+
+    @GET
+    @Path("/by-sequence/{chapterId}/{sequenceNumber}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public SectionResponse getBySequence(
+            @PathParam("chapterId") final Long chapterId,
+            @PathParam("sequenceNumber") final Integer sequenceNumber,
+            @QueryParam("include_full_text") @DefaultValue("false") final boolean includeFullText
+    ) {
+        LOG.infof("GET /sections/by-sequence/%d/%d (include_full_text=%b)", chapterId, sequenceNumber, includeFullText);
+
+        final SectionsRecord record = dsl.selectFrom(Tables.SECTIONS)
+                .where(Tables.SECTIONS.CHAPTER_ID.eq(chapterId)
+                        .and(Tables.SECTIONS.SEQUENCE.eq(sequenceNumber)))
+                .fetchOne();
+
+        if (record == null) {
+            throw new NotFoundException("Section not found for chapterId=" + chapterId + ", sequence=" + sequenceNumber);
+        }
+
+        return toResponse(record, includeFullText);
     }
 
     @GET
