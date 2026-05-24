@@ -1,0 +1,8 @@
+---
+description: Database migrations and jOOQ code generation conventions
+alwaysApply: false
+---
+
+The current focus of our project in on document-ingestion-api and the new MCP service.
+
+api-spring and rag-experiments are legacy projects we do not need to worry about right now.
