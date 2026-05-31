@@ -1,6 +1,6 @@
 package com.chriswininger.ai;
 
-import com.chriswininger.api.services.ChapterDetectionAiService;
+import com.chriswininger.api.documents.services.ChapterDetectionAiService;
 import dev.langchain4j.model.chat.Capability;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.ollama.OllamaChatModel;
