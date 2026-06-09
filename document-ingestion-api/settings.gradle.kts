@@ -10,4 +10,6 @@ pluginManagement {
         id(quarkusPluginId) version quarkusPluginVersion
     }
 }
+includeBuild("../ollama-client")
+
 rootProject.name="document-ingestion-api"

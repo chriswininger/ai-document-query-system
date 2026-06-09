@@ -1,13 +1,11 @@
-package com.chriswininger.api.services.inferenceapi;
+package com.chriswininger.ollama;
 
-import com.chriswininger.api.dto.inferenceresults.InferenceDescription;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import jakarta.enterprise.context.ApplicationScoped;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.io.IOException;
@@ -22,25 +20,30 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-@ApplicationScoped
 public class OllamaApiService {
-    @ConfigProperty(name = "ollama.base-url")
-    String baseUrl;
 
-    @ConfigProperty(name = "ollama.model-name", defaultValue = "gemma4:e2b")
-    String modelName;
-
-    @ConfigProperty(name = "ollama.timeout-seconds", defaultValue = "300")
-    int timeoutSeconds;
-
-    @ConfigProperty(name = "com.chriswininger.model.request-logging", defaultValue = "false")
-    Boolean verboseRequestLogging;
-
-    // TODO: Make ConfigProperty
-    private final long numCtx = 65536L;
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
     private static final Logger LOG = Logger.getLogger(OllamaApiService.class);
+
+    private final String baseUrl;
+    private final String modelName;
+    private final long numCtx;
+    private final int timeoutSeconds;
+    private final boolean verboseRequestLogging;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    public OllamaApiService(
+            final String baseUrl,
+            final String modelName,
+            final long numCtx,
+            final int timeoutSeconds,
+            final boolean verboseRequestLogging
+    ) {
+        this.baseUrl = baseUrl;
+        this.modelName = modelName;
+        this.numCtx = numCtx;
+        this.timeoutSeconds = timeoutSeconds;
+        this.verboseRequestLogging = verboseRequestLogging;
+    }
 
     public String callOllamaPlainTextResponse(
             final String systemPrompt,
@@ -120,6 +123,7 @@ public class OllamaApiService {
 
         final JsonNode outer = objectMapper.readTree(body);
 
+        LOG.info("!!! body: " + outer);
         if (think) {
             final String thinking = outer.path("message").path("thinking").asText();
             LOG.debugf("""
@@ -128,7 +132,6 @@ public class OllamaApiService {
                     ===================
                     """, thinking);
         }
-
 
         final String jsonResp = outer.path("message").path("content").asText();
         return parseToOutput(recordClass, jsonResp);
@@ -139,19 +142,65 @@ public class OllamaApiService {
     }
 
     public String buildExampleJson(Class<? extends Record> recordClass) throws JsonProcessingException {
-        final ObjectNode format = objectMapper.createObjectNode();
+        return objectMapper.writerWithDefaultPrettyPrinter()
+                .writeValueAsString(buildExampleNode(recordClass));
+    }
 
-        final ObjectNode properties = format.putObject("properties");
-        properties.put("type", "object");
+    private ObjectNode buildExampleNode(Class<? extends Record> recordClass) {
+        final ObjectNode node = objectMapper.createObjectNode();
 
         for (RecordComponent component : recordClass.getRecordComponents()) {
             final String name = component.getName();
+            final Class<?> type = component.getType();
+            final java.lang.reflect.Type genericType = component.getGenericType();
 
-            final String valueType = getType(component.getType(), component.getGenericType());
-            properties.put(name, valueType);
+            setExampleValue(node, name, type, genericType);
         }
 
-        return objectMapper.writeValueAsString(properties);
+        return node;
+    }
+
+    private void setExampleValue(ObjectNode parent, String fieldName, Class<?> type, java.lang.reflect.Type genericType) {
+        if (type == String.class) {
+            parent.put(fieldName, "string");
+        } else if (type == Long.class || type == long.class) {
+            parent.put(fieldName, 0L);
+        } else if (type == Integer.class || type == int.class) {
+            parent.put(fieldName, 0);
+        } else if (type == Double.class || type == double.class
+                || type == Float.class || type == float.class) {
+            parent.put(fieldName, 0.0);
+        } else if (type == Boolean.class || type == boolean.class) {
+            parent.put(fieldName, false);
+        } else if (type == List.class || type == Set.class) {
+            final ArrayNode arr = parent.putArray(fieldName);
+            if (genericType instanceof ParameterizedType pt) {
+                final Class<?> elementType = (Class<?>) pt.getActualTypeArguments()[0];
+                if (elementType.isRecord()) {
+                    @SuppressWarnings("unchecked")
+                    final Class<? extends Record> nested = (Class<? extends Record>) elementType;
+                    arr.add(buildExampleNode(nested));
+                } else {
+                    arr.add(getExamplePrimitive(elementType));
+                }
+            }
+        } else if (type.isRecord()) {
+            @SuppressWarnings("unchecked")
+            final Class<? extends Record> nested = (Class<? extends Record>) type;
+            parent.set(fieldName, buildExampleNode(nested));
+        } else {
+            parent.put(fieldName, "string");
+        }
+    }
+
+    private String getExamplePrimitive(Class<?> type) {
+        if (type == Long.class || type == long.class
+                || type == Integer.class || type == int.class) {
+            return "0";
+        } else if (type == Boolean.class || type == boolean.class) {
+            return "false";
+        }
+        return "string";
     }
 
     public ObjectNode buildFormatBlock(Class<? extends Record> recordClass) {
@@ -175,36 +224,6 @@ public class OllamaApiService {
         }
 
         return format;
-    }
-
-    private String getType(Class<?> type, java.lang.reflect.Type genericType) {
-        if (type == String.class) {
-            return "string";
-        } else if (type == Long.class || type == long.class
-                || type == Integer.class || type == int.class) {
-            return "integer";
-        } else if (type == Double.class || type == double.class
-                || type == Float.class || type == float.class) {
-            return "number";
-        } else if (type == Boolean.class || type == boolean.class) {
-            return "boolean";
-        } else if (type == List.class || type == Set.class) {
-            /* final ObjectNode items = prop.putObject("items"); */
-            if (genericType instanceof ParameterizedType pt) {
-                final Class<?> elementType = (Class<?>) pt.getActualTypeArguments()[0];
-                final String arrayType = getType(elementType, elementType);
-
-                return arrayType + " []";
-            } else {
-                return "[]";
-            }
-        } else if (type.isRecord()) {
-            @SuppressWarnings("unchecked")
-            final Class<? extends Record> nested = (Class<? extends Record>) type;
-            return "{}";
-        } else {
-            return "string";
-        }
     }
 
     private void mapType(ObjectNode prop, Class<?> type, java.lang.reflect.Type genericType) {
@@ -244,9 +263,8 @@ public class OllamaApiService {
         root.put("model", modelName);
         root.put("stream", false);
 
-        // options
         final ObjectNode options = root.putObject("options");
-        options.put("num_ctx", 65536);
+        options.put("num_ctx", numCtx);
 
         if (think) {
             options.put("think", true);
@@ -256,7 +274,6 @@ public class OllamaApiService {
             root.set("format", format);
         }
 
-        // === Messages ===
         final ArrayNode messages = root.putArray("messages");
         final ObjectNode systemMsg = messages.addObject();
         systemMsg.put("role", "system");
@@ -264,9 +281,7 @@ public class OllamaApiService {
         final ObjectNode userMsg = messages.addObject();
         userMsg.put("role", "user");
         userMsg.put("content", userMessage);
-        // === End Messages ===
 
         return objectMapper.writeValueAsString(root);
     }
-
 }

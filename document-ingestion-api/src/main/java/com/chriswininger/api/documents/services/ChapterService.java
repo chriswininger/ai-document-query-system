@@ -2,6 +2,7 @@ package com.chriswininger.api.documents.services;
 
 import com.chriswininger.api.dto.inferenceresults.ChapterSummaryResult;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.jboss.logging.Logger;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -9,6 +10,7 @@ import java.util.regex.Pattern;
 
 @ApplicationScoped
 public class ChapterService {
+    private static final Logger LOG = Logger.getLogger(ChapterService.class);
 
     private final ChapterSummaryAiServiceDirect chapterSummaryAiService;
 
@@ -48,6 +50,13 @@ public class ChapterService {
             }
             lastHeader = matcher.group(); // the matched header itself
             lastEnd = matcher.end();
+        }
+
+        if (lastHeader == null) {
+            LOG.warn("Chapter splitter found 0 chapters");
+            throw new IllegalArgumentException(
+                    "Chapter split pattern '%s' did not match anything in the document"
+                            .formatted(splitPattern.pattern()));
         }
 
         String label = lastHeader.trim();

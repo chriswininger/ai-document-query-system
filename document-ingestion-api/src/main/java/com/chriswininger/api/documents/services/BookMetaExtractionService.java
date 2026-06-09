@@ -2,7 +2,7 @@ package com.chriswininger.api.documents.services;
 
 import com.chriswininger.api.documents.dto.BookMetadataAnalysis;
 import com.chriswininger.api.dto.inferenceresults.BookMetadataAnalysisResult;
-import com.chriswininger.api.services.inferenceapi.OllamaApiService;
+import com.chriswininger.ollama.OllamaApiService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.splitter.DocumentBySentenceSplitter;

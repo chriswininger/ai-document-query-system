@@ -1,8 +1,10 @@
 ---
-description: Database migrations and jOOQ code generation conventions
-alwaysApply: false
+description: Current project focus and scope
+alwaysApply: true
 ---
 
-The current focus of our project in on document-ingestion-api and the new MCP service.
+# Project Focus
 
-api-spring and rag-experiments are legacy projects we do not need to worry about right now.
+This workspace is the **document-ingestion-api** — a Quarkus service for ingesting, chunking, and summarizing documents with LLM-powered analysis.
+
+Key capabilities: document import, chapter/section extraction, AI-driven summarization, semantic search via pgvector.

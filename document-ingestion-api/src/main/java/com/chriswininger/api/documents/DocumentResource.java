@@ -8,9 +8,11 @@ import com.chriswininger.api.documents.services.ChapterService;
 import com.chriswininger.api.documents.services.ImportBookService;
 import com.chriswininger.db.generated.Tables;
 import com.chriswininger.db.generated.tables.records.DocumentsRecord;
+import org.eclipse.microprofile.openapi.annotations.Operation;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -53,6 +55,7 @@ public class DocumentResource {
     @GET
     @Path("/documents")
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "listDocuments")
     public List<DocumentResponse> listDocuments(
             @QueryParam("include_full_text") @DefaultValue("false") final boolean includeFullText
     ) {
@@ -66,6 +69,7 @@ public class DocumentResource {
     @GET
     @Path("/documents/{id}")
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "getDocumentById")
     public DocumentResponse getDocumentById(
             @PathParam("id") final Long id,
             @QueryParam("include_full_text") @DefaultValue("false") final boolean includeFullText
@@ -87,6 +91,7 @@ public class DocumentResource {
     @Path("/test/generate-test-chapters")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "generateTestChapters")
     public void generateTestChapters(SubmitDocumentRequest request) {
         final String documentText = request.document();
         final String documentTitle = request.documentTitle();
@@ -126,13 +131,18 @@ public class DocumentResource {
     @Path("/submit-document")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "submitDocument")
     public ImportedBookResult submitDocument(SubmitDocumentRequest request) throws IOException, InterruptedException {
         final String bookContents = request.document();
         LOG.infof("POST /rest/v1/submit-document — document size: %d bytes", bookContents.length());
 
         final Pattern chapterSplitPattern = getChapterSplitPattern(request);
 
-        return importBookService.importBook(bookContents, chapterSplitPattern);
+        try {
+            return importBookService.importBook(bookContents, chapterSplitPattern);
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException(e.getMessage(), e);
+        }
     }
 
     private String toSafeFileName(String input) {

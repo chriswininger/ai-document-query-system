@@ -3,7 +3,6 @@ package com.chriswininger.repository;
 import com.chriswininger.db.generated.Tables;
 import com.chriswininger.db.generated.tables.records.SectionsRecord;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import org.jooq.DSLContext;
 
 import java.util.List;
@@ -12,8 +11,11 @@ import java.util.Optional;
 @ApplicationScoped
 public class SectionRepository {
 
-    @Inject
-    DSLContext dsl;
+    private final DSLContext dsl;
+
+    public SectionRepository(final DSLContext dsl) {
+        this.dsl = dsl;
+    }
 
     public List<SectionsRecord> findAll() {
         return dsl.selectFrom(Tables.SECTIONS).fetch();

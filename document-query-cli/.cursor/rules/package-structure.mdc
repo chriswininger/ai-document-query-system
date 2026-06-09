@@ -1,0 +1,55 @@
+---
+description: Java package organization and where to place new classes
+globs: "**/*.java"
+alwaysApply: false
+---
+
+# Package Structure
+
+Root package: `com.chriswininger`
+
+## Entry point
+
+`com.chriswininger.cli.EntryCommand` — the `@TopCommand` entry point.
+New subcommands are added to its `subcommands` array.
+
+## Command packages under `cli/commands/`
+
+Each command lives in its own package under `com.chriswininger.cli.commands`:
+
+```
+com.chriswininger.cli.commands.<name>/
+  ├── <Name>Command.java          # @Command implementing Runnable
+  ├── dto/                         # Domain-specific DTOs (records)
+  └── services/                    # Business logic services
+```
+
+When adding a new command, create a new package following this pattern and register
+it in `EntryCommand`'s `subcommands` array.
+
+## Generated API client (`com.chriswininger.client`)
+
+A typed HTTP client is auto-generated from `../openapi-specs/openapi.json`
+(produced by `document-ingestion-api`) at build time via the OpenAPI Generator
+Gradle plugin. The output lives in `build/generated/openapi/` and is **not**
+checked into source.
+
+- `com.chriswininger.client` — `ApiClient`, configuration, JSON helpers
+- `com.chriswininger.client.api` — one API class per REST resource
+- `com.chriswininger.client.model` — DTOs matching the API's schemas
+
+**Do not edit generated code.** To change the client, either:
+1. Update the endpoint in `document-ingestion-api`, rebuild it (which
+   regenerates the spec), then rebuild this project.
+2. Adjust generator settings in `build.gradle.kts` under `openApiGenerate`.
+
+## Placement guide
+
+| You're adding… | Put it in… |
+|----------------|-----------|
+| New subcommand | `cli/commands/<name>/<Name>Command.java` + register in `EntryCommand` |
+| New DTO for a command | `cli/commands/<name>/dto/` |
+| New business service | `cli/commands/<name>/services/` |
+| Shared utility across commands | `cli/util/` |
+| Shared service across commands | `cli/services/` |
+| API client usage | Import from `com.chriswininger.client.api` — never hand-write HTTP calls |

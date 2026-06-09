@@ -1,0 +1,44 @@
+---
+description: Environment and toolchain setup for running commands in this project
+alwaysApply: true
+---
+
+# Environment & Toolchain
+
+SDKman is installed at `~/.sdkman`. Java, Quarkus CLI, and Gradle all require it.
+
+Any shell command using `java`, `quarkus`, or `./gradlew` must source SDKman first:
+
+```bash
+source ~/.sdkman/bin/sdkman-init.sh && ./gradlew <task>
+```
+
+- Java: 25 (Amazon Corretto)
+- Quarkus CLI: 3.36.0
+- Gradle: via wrapper — always use `./gradlew`, never a system Gradle
+
+## Generated API Client
+
+This project generates a typed Java HTTP client from the OpenAPI spec at
+`../openapi-specs/openapi.json` (produced by `document-ingestion-api`).
+
+The OpenAPI Generator Gradle plugin runs automatically before `compileJava`.
+If the API changes, rebuild **both** projects:
+
+```bash
+# 1. In document-ingestion-api — regenerates the spec
+source ~/.sdkman/bin/sdkman-init.sh && ./gradlew build -x test
+
+# 2. In document-query-cli — regenerates the client
+source ~/.sdkman/bin/sdkman-init.sh && ./gradlew build -x test
+```
+
+Generated code is in `build/generated/openapi/` — never edit it by hand.
+
+## Dev Mode
+
+Run with `./gradlew quarkusDev`. Pass CLI arguments via `--quarkus-args`:
+
+```bash
+./gradlew quarkusDev --quarkus-args='greet -n World'
+```

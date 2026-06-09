@@ -4,6 +4,7 @@ import com.chriswininger.api.ApiConstants;
 import com.chriswininger.api.documents.dto.requests.BookMetadataResponse;
 import com.chriswininger.db.generated.Tables;
 import com.chriswininger.db.generated.tables.records.BookMetadataRecord;
+import org.eclipse.microprofile.openapi.annotations.Operation;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
@@ -32,6 +33,7 @@ public class BookMetadataResource {
     @GET
     @Path("/by-document/{documentId}")
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "getBookMetadataByDocument")
     public BookMetadataResponse getByDocument(
             @PathParam("documentId") final Long documentId,
             @QueryParam("include_full_text") @DefaultValue("false") final boolean includeFullText
@@ -52,6 +54,7 @@ public class BookMetadataResource {
     @GET
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "getBookMetadataById")
     public BookMetadataResponse getById(
             @PathParam("id") final Long id,
             @QueryParam("include_full_text") @DefaultValue("false") final boolean includeFullText

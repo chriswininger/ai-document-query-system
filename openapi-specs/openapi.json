@@ -1,0 +1,951 @@
+{
+  "openapi" : "3.0.3",
+  "components" : {
+    "schemas" : {
+      "BookMetadataAnalysis" : {
+        "type" : "object",
+        "properties" : {
+          "fullFrontText" : {
+            "type" : "string"
+          },
+          "fullBackText" : {
+            "type" : "string"
+          },
+          "bookMetadataAnalysisResult" : {
+            "$ref" : "#/components/schemas/BookMetadataAnalysisResult"
+          }
+        }
+      },
+      "BookMetadataAnalysisResult" : {
+        "type" : "object",
+        "properties" : {
+          "summary" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "authorName" : {
+            "type" : "string"
+          },
+          "publisher" : {
+            "type" : "string"
+          },
+          "yearPublished" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "characters" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "possibleQuestionsThisAnswers" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "hasSummaryInformation" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "BookMetadataResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "documentId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "authorName" : {
+            "type" : "string"
+          },
+          "publisher" : {
+            "type" : "string"
+          },
+          "yearPublished" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "characters" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "possibleQuestionsThisAnswers" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "hasSummaryInformation" : {
+            "type" : "boolean"
+          },
+          "fullTextFront" : {
+            "type" : "string"
+          },
+          "fullTextBack" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "$ref" : "#/components/schemas/OffsetDateTime"
+          },
+          "updatedAt" : {
+            "$ref" : "#/components/schemas/OffsetDateTime"
+          }
+        }
+      },
+      "BookSummaryResult" : {
+        "type" : "object",
+        "properties" : {
+          "summary" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "authorName" : {
+            "type" : "string"
+          },
+          "publisher" : {
+            "type" : "string"
+          },
+          "yearPublished" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "characters" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "possibleQuestionsThisAnswers" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "ChapterResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "documentId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "chapterTitle" : {
+            "type" : "string"
+          },
+          "sequence" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "characters" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "fullText" : {
+            "type" : "string"
+          },
+          "possibleQuestionsThisAnswers" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "createdAt" : {
+            "$ref" : "#/components/schemas/OffsetDateTime"
+          },
+          "updatedAt" : {
+            "$ref" : "#/components/schemas/OffsetDateTime"
+          }
+        }
+      },
+      "ChapterSummary" : {
+        "type" : "object",
+        "properties" : {
+          "sequence" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "chapterSummaryResult" : {
+            "$ref" : "#/components/schemas/ChapterSummaryResult"
+          },
+          "chapterTitle" : {
+            "type" : "string"
+          },
+          "fullChapterText" : {
+            "type" : "string"
+          },
+          "segments" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Segment"
+            }
+          }
+        }
+      },
+      "ChapterSummaryResult" : {
+        "type" : "object",
+        "properties" : {
+          "summary" : {
+            "type" : "string"
+          },
+          "characters" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "possibleQuestionsThisAnswers" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "DocumentResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "characters" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "fullText" : {
+            "type" : "string"
+          },
+          "yearPublished" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "authorName" : {
+            "type" : "string"
+          },
+          "possibleQuestionsThisAnswers" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "createdAt" : {
+            "$ref" : "#/components/schemas/OffsetDateTime"
+          },
+          "updatedAt" : {
+            "$ref" : "#/components/schemas/OffsetDateTime"
+          }
+        }
+      },
+      "ImportedBookResult" : {
+        "type" : "object",
+        "properties" : {
+          "bookSummary" : {
+            "$ref" : "#/components/schemas/BookSummaryResult"
+          },
+          "bookMetadataAnalysis" : {
+            "$ref" : "#/components/schemas/BookMetadataAnalysis"
+          },
+          "chapterSummaries" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ChapterSummary"
+            }
+          }
+        }
+      },
+      "OffsetDateTime" : {
+        "format" : "date-time",
+        "type" : "string",
+        "example" : "2022-03-10T12:15:50-04:00"
+      },
+      "PagedResponseSectionResponse" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SectionResponse"
+            }
+          },
+          "totalCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "currentPage" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pageSize" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "hasNextPage" : {
+            "type" : "boolean"
+          },
+          "hasPreviousPage" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "SectionResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "chapterId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "sequence" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "characters" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "fullText" : {
+            "type" : "string"
+          },
+          "possibleQuestionsThisAnswers" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "createdAt" : {
+            "$ref" : "#/components/schemas/OffsetDateTime"
+          },
+          "updatedAt" : {
+            "$ref" : "#/components/schemas/OffsetDateTime"
+          }
+        }
+      },
+      "Segment" : {
+        "type" : "object",
+        "properties" : {
+          "sequence" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "fullSegment" : {
+            "type" : "string"
+          },
+          "segmentSummary" : {
+            "$ref" : "#/components/schemas/SegmentSummaryResult"
+          }
+        }
+      },
+      "SegmentSummaryResult" : {
+        "type" : "object",
+        "properties" : {
+          "summary" : {
+            "type" : "string"
+          },
+          "characters" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "possibleQuestionsThisAnswers" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "SemanticSearchMatchResponse" : {
+        "type" : "object",
+        "properties" : {
+          "score" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "text" : {
+            "type" : "string"
+          },
+          "sectionId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "chapterId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "documentId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "bookTitle" : {
+            "type" : "string"
+          },
+          "chapterLabel" : {
+            "type" : "string"
+          }
+        }
+      },
+      "SubmitDocumentRequest" : {
+        "type" : "object",
+        "properties" : {
+          "document" : {
+            "type" : "string"
+          },
+          "documentTitle" : {
+            "type" : "string"
+          },
+          "chapterSplitPattern" : {
+            "type" : "string"
+          }
+        }
+      }
+    }
+  },
+  "paths" : {
+    "/rest/v1/book-metadata/by-document/{documentId}" : {
+      "get" : {
+        "operationId" : "getBookMetadataByDocument",
+        "parameters" : [ {
+          "name" : "documentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "name" : "include_full_text",
+          "in" : "query",
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BookMetadataResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary" : "Get By Document",
+        "tags" : [ "Book Metadata Resource" ]
+      }
+    },
+    "/rest/v1/book-metadata/{id}" : {
+      "get" : {
+        "operationId" : "getBookMetadataById",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "name" : "include_full_text",
+          "in" : "query",
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BookMetadataResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary" : "Get By Id",
+        "tags" : [ "Book Metadata Resource" ]
+      }
+    },
+    "/rest/v1/chapters/by-document/{documentId}" : {
+      "get" : {
+        "operationId" : "listChaptersByDocument",
+        "parameters" : [ {
+          "name" : "documentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "name" : "include_full_text",
+          "in" : "query",
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ChapterResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary" : "List By Document",
+        "tags" : [ "Chapter Resource" ]
+      }
+    },
+    "/rest/v1/chapters/{id}" : {
+      "get" : {
+        "operationId" : "getChapterById",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "name" : "include_full_text",
+          "in" : "query",
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChapterResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary" : "Get By Id",
+        "tags" : [ "Chapter Resource" ]
+      }
+    },
+    "/rest/v1/documents" : {
+      "get" : {
+        "operationId" : "listDocuments",
+        "parameters" : [ {
+          "name" : "include_full_text",
+          "in" : "query",
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/DocumentResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary" : "List Documents",
+        "tags" : [ "Document Resource" ]
+      }
+    },
+    "/rest/v1/documents/{id}" : {
+      "get" : {
+        "operationId" : "getDocumentById",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "name" : "include_full_text",
+          "in" : "query",
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary" : "Get Document By Id",
+        "tags" : [ "Document Resource" ]
+      }
+    },
+    "/rest/v1/sections/by-chapter/{chapterId}" : {
+      "get" : {
+        "operationId" : "listSectionsByChapter",
+        "parameters" : [ {
+          "name" : "chapterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "name" : "include_full_text",
+          "in" : "query",
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SectionResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary" : "List By Chapter",
+        "tags" : [ "Section Resource" ]
+      }
+    },
+    "/rest/v1/sections/by-document/{documentId}" : {
+      "get" : {
+        "operationId" : "listSectionsByDocument",
+        "parameters" : [ {
+          "name" : "documentId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "name" : "include_full_text",
+          "in" : "query",
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "schema" : {
+            "format" : "int32",
+            "default" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "name" : "page_size",
+          "in" : "query",
+          "schema" : {
+            "format" : "int32",
+            "default" : 20,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedResponseSectionResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary" : "List By Document",
+        "tags" : [ "Section Resource" ]
+      }
+    },
+    "/rest/v1/sections/by-sequence/{chapterId}/{sequenceNumber}" : {
+      "get" : {
+        "operationId" : "getSectionBySequence",
+        "parameters" : [ {
+          "name" : "chapterId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "name" : "sequenceNumber",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "name" : "include_full_text",
+          "in" : "query",
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SectionResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary" : "Get By Sequence",
+        "tags" : [ "Section Resource" ]
+      }
+    },
+    "/rest/v1/sections/{id}" : {
+      "get" : {
+        "operationId" : "getSectionById",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "name" : "include_full_text",
+          "in" : "query",
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SectionResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary" : "Get By Id",
+        "tags" : [ "Section Resource" ]
+      }
+    },
+    "/rest/v1/semantic-search" : {
+      "get" : {
+        "operationId" : "searchSemantic",
+        "parameters" : [ {
+          "name" : "chapterId",
+          "in" : "query",
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "name" : "documentId",
+          "in" : "query",
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "name" : "maxResults",
+          "in" : "query",
+          "schema" : {
+            "format" : "int32",
+            "default" : 10,
+            "type" : "integer"
+          }
+        }, {
+          "name" : "phrase",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/SemanticSearchMatchResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary" : "Search",
+        "tags" : [ "Semantic Search Resource" ]
+      }
+    },
+    "/rest/v1/submit-document" : {
+      "post" : {
+        "operationId" : "submitDocument",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SubmitDocumentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ImportedBookResult"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad Request"
+          }
+        },
+        "summary" : "Submit Document",
+        "tags" : [ "Document Resource" ]
+      }
+    },
+    "/rest/v1/test/generate-test-chapters" : {
+      "post" : {
+        "operationId" : "generateTestChapters",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SubmitDocumentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created"
+          },
+          "400" : {
+            "description" : "Bad Request"
+          }
+        },
+        "summary" : "Generate Test Chapters",
+        "tags" : [ "Document Resource" ]
+      }
+    }
+  },
+  "info" : {
+    "title" : "document-ingestion-api API",
+    "version" : "1.0.0-SNAPSHOT"
+  },
+  "servers" : [ {
+    "url" : "http://localhost:8080",
+    "description" : "Auto generated value"
+  }, {
+    "url" : "http://0.0.0.0:8080",
+    "description" : "Auto generated value"
+  } ]
+}

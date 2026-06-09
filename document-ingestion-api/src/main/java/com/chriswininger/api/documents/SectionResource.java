@@ -5,6 +5,7 @@ import com.chriswininger.api.documents.dto.requests.PagedResponse;
 import com.chriswininger.api.documents.dto.requests.SectionResponse;
 import com.chriswininger.db.generated.Tables;
 import com.chriswininger.db.generated.tables.records.SectionsRecord;
+import org.eclipse.microprofile.openapi.annotations.Operation;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
@@ -33,6 +34,7 @@ public class SectionResource {
     @GET
     @Path("/by-chapter/{chapterId}")
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "listSectionsByChapter")
     public List<SectionResponse> listByChapter(
             @PathParam("chapterId") final Long chapterId,
             @QueryParam("include_full_text") @DefaultValue("false") final boolean includeFullText
@@ -49,6 +51,7 @@ public class SectionResource {
     @GET
     @Path("/by-document/{documentId}")
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "listSectionsByDocument")
     public PagedResponse<SectionResponse> listByDocument(
             @PathParam("documentId") final Long documentId,
             @QueryParam("include_full_text") @DefaultValue("false") final boolean includeFullText,
@@ -91,6 +94,7 @@ public class SectionResource {
     @GET
     @Path("/by-sequence/{chapterId}/{sequenceNumber}")
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "getSectionBySequence")
     public SectionResponse getBySequence(
             @PathParam("chapterId") final Long chapterId,
             @PathParam("sequenceNumber") final Integer sequenceNumber,
@@ -113,6 +117,7 @@ public class SectionResource {
     @GET
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "getSectionById")
     public SectionResponse getById(
             @PathParam("id") final Long id,
             @QueryParam("include_full_text") @DefaultValue("false") final boolean includeFullText

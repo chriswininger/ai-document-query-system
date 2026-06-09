@@ -1,7 +1,7 @@
 package com.chriswininger.api.documents.services;
 
 import com.chriswininger.api.dto.inferenceresults.BookSummaryResult;
-import com.chriswininger.api.services.inferenceapi.OllamaApiService;
+import com.chriswininger.ollama.OllamaApiService;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.jboss.logging.Logger;
 

@@ -1,5 +1,7 @@
 package com.chriswininger.api.dto.inferenceresults;
 
+import com.chriswininger.ollama.InferenceDescription;
+
 import java.util.List;
 
 /**

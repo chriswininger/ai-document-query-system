@@ -28,6 +28,7 @@ dependencies {
     implementation("org.bsc.langgraph4j:langgraph4j-core:1.8.13")
 
     implementation("io.quarkus:quarkus-jdbc-postgresql")
+    implementation("com.chriswininger:ollama-client")
     testImplementation("io.quarkus:quarkus-junit")
     testImplementation("io.rest-assured:rest-assured")
 

@@ -37,9 +37,9 @@ public class MyService {
 
 ## Records for DTOs
 
-Use Java records for data transfer objects. Place them in `dto/` or `dto/inferenceresults/`.
+Use Java records for data transfer objects. Place them in the `dto/` or `dto/requests/` sub-package of the relevant domain package (see `package-structure` rule). Cross-cutting inference results go in `api.dto.inferenceresults/`.
 
-Inference result records use `@InferenceDescription` on fields (not LangChain4j's `@Description`) so `OllamaApiService` can build format blocks for structured output.
+Inference result records use `@InferenceDescription` (from `com.chriswininger.ollama` in the shared `ollama-client` library) on fields — not LangChain4j's `@Description` — so `OllamaApiService` can build format blocks for structured output. `OllamaApiService` is provided via `OllamaApiServiceProducer`; inject it by type, do not instantiate directly.
 
 ## Two-Pass AI Service Pattern
 

@@ -1,4 +1,4 @@
-package com.chriswininger.api.dto.inferenceresults;
+package com.chriswininger.ollama;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;

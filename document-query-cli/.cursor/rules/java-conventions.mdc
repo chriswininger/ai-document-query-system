@@ -1,0 +1,58 @@
+---
+description: Java coding conventions and patterns for this Quarkus project
+globs: "**/*.java"
+alwaysApply: false
+---
+
+# Java Conventions
+
+## Dependency Injection
+
+Use constructor injection, not `@Inject` on fields. Mark dependencies `final`.
+
+```java
+// Good
+@ApplicationScoped
+public class MyService {
+    private final SomeDependency dependency;
+
+    public MyService(final SomeDependency dependency) {
+        this.dependency = dependency;
+    }
+}
+
+// Bad
+@ApplicationScoped
+public class MyService {
+    @Inject
+    SomeDependency dependency;
+}
+```
+
+## Prefer `final`
+
+- Method parameters: `final String text`
+- Local variables: `final var result = ...`
+- Fields: `private final SomeDependency dependency`
+
+## Records for DTOs
+
+Use Java records for data transfer objects. Place them in the `dto/` sub-package
+of the relevant command package.
+
+## CDI Beans
+
+- Services are `@ApplicationScoped`
+- Commands are picocli `@Command` classes implementing `Runnable`
+
+## Logging
+
+Use `org.jboss.logging.Logger` with `LOG.infof(...)` format-string style.
+
+```java
+private static final Logger LOG = Logger.getLogger(MyService.class);
+```
+
+## Text Blocks
+
+Use text blocks (`"""`) for multi-line strings. Use `.formatted(...)` for interpolation.

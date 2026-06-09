@@ -1,0 +1,51 @@
+---
+description: Java package organization and where to place new classes
+globs: **/*.java
+alwaysApply: false
+---
+
+# Package Structure
+
+Root package: `com.chriswininger`
+
+## Domain packages under `api/`
+
+Each domain feature lives in its own package under `com.chriswininger.api` with a consistent internal layout:
+
+```
+com.chriswininger.api.<domain>/
+  ├── <Domain>Resource.java        # JAX-RS endpoint(s)
+  ├── dto/                         # Domain-specific DTOs (records)
+  │   └── requests/                # Request/response DTOs
+  └── services/                    # Business logic services
+```
+
+Current domains: `documents`, `semanticsearch`.
+
+When adding a new feature area, create a new domain package following this pattern rather than adding to an existing one.
+
+## Cross-cutting API packages
+
+- `com.chriswininger.api` — shared API constants (`ApiConstants`)
+- `com.chriswininger.api.services.inferenceapi` — LLM inference services (`OllamaApiService`)
+- `com.chriswininger.api.dto.inferenceresults` — inference result records and `@InferenceDescription`
+
+## Infrastructure packages
+
+| Package | Purpose |
+|---------|---------|
+| `com.chriswininger.ai` | CDI producers for LangChain4j models, embedding stores, and AI service interfaces |
+| `com.chriswininger.db` | `DSLContextProducer` and DB wiring |
+| `com.chriswininger.repository` | One `@ApplicationScoped` repository per table, using jOOQ `DSLContext` |
+
+## Placement guide
+
+| You're adding… | Put it in… |
+|----------------|-----------|
+| New REST endpoint for an existing domain | `api.<domain>/<Name>Resource.java` |
+| New feature area | `api.<newdomain>/` with resource, `dto/`, `services/` |
+| New DTO for a domain | `api.<domain>.dto.requests/` (or `dto/` if not a request/response) |
+| New business service | `api.<domain>.services/` |
+| New repository | `repository/` |
+| New CDI producer for AI/ML | `ai/` |
+| New DB infrastructure | `db/` |

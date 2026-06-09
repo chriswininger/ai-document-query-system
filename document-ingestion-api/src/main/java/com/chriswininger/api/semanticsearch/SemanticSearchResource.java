@@ -3,6 +3,7 @@ package com.chriswininger.api.semanticsearch;
 import com.chriswininger.api.ApiConstants;
 import com.chriswininger.api.semanticsearch.dto.requests.SemanticSearchMatchResponse;
 import com.chriswininger.api.semanticsearch.services.VectorStoreService;
+import org.eclipse.microprofile.openapi.annotations.Operation;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
@@ -27,6 +28,7 @@ public class SemanticSearchResource {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "searchSemantic")
     public List<SemanticSearchMatchResponse> search(
             @QueryParam("phrase") final String phrase,
             @QueryParam("documentId") final Long documentId,

@@ -2,7 +2,6 @@ package com.chriswininger.api.documents.services;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import org.bsc.langgraph4j.StateGraph;
 import org.bsc.langgraph4j.CompiledGraph;
 import org.bsc.langgraph4j.GraphStateException;
@@ -30,10 +29,13 @@ public class ChapterServiceBackup {
     private static final int[] SLICE_SIZES = {50, 75, 100};
     private static final int MAX_RETRIES = SLICE_SIZES.length;
 
-    @Inject
-    ChapterDetectionAiService chapterDetectionAiService;
+    private final ChapterDetectionAiService chapterDetectionAiService;
 
     private CompiledGraph<ChapterState> graph;
+
+    public ChapterServiceBackup(final ChapterDetectionAiService chapterDetectionAiService) {
+        this.chapterDetectionAiService = chapterDetectionAiService;
+    }
 
     // -------------------------------------------------------------------------
     // State
