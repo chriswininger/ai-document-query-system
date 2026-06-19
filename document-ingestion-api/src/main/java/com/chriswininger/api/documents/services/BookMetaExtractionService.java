@@ -139,7 +139,8 @@ public class BookMetaExtractionService {
 
     public BookMetadataAnalysis extractMetaDataFromTheBook(
             final String fullBook,
-            final Pattern chapterSplitter
+            final Pattern chapterSplitter,
+            final String documentTitle
     ) throws IOException, InterruptedException {
         final String frontText = extractFrontText(fullBook, chapterSplitter);
         final String frontAnalysis = analyzeFrontText(frontText);
@@ -156,8 +157,12 @@ public class BookMetaExtractionService {
                 %s
                 ==============================
 
+                File Name: '%s'
+
                 Based on the above analyses of both front and back please respond with structured JSON.
-        """.formatted(frontAnalysis, backAnalysis).trim();
+        """.formatted(frontAnalysis, backAnalysis, documentTitle).trim();
+
+        System.out.println("!!! userMessage: " + userMessage);
 
         final BookMetadataAnalysisResult result = ollamaApiService.callOllamaStructuredResponse(
                 SYSTEM_MESSAGE_STRUCTURE.formatted(ollamaApiService.buildExampleJson(BookMetadataAnalysisResult.class)),

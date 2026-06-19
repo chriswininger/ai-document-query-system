@@ -120,7 +120,8 @@ public class ChapterSummaryAiServiceDirect {
 
         // options
         final ObjectNode options = root.putObject("options");
-        options.put("num_ctx", 65536);
+        // TODO use our client for this
+        options.put("num_ctx", 32768);
 
         // === Messages ===
         final ArrayNode messages = root.putArray("messages");
@@ -160,7 +161,7 @@ public class ChapterSummaryAiServiceDirect {
 
         // options
         final ObjectNode options = root.putObject("options");
-        options.put("num_ctx", 65536);
+        options.put("num_ctx", 32768);
 
         // === Messages ===
         final ArrayNode messages = root.putArray("messages");
@@ -182,9 +183,10 @@ public class ChapterSummaryAiServiceDirect {
         final String innerJson = outer.path("message").path("content").asText();
         final ChapterSummaryResult chapterSummary = objectMapper.readValue(innerJson, ChapterSummaryResult.class);
 
-        // deduplicate characters
-        final Set<String> deduplicatedCharacters = new HashSet<>(
-                chapterSummary.characters().stream().map(String::toLowerCase).toList());
+        final var rawCharacters = chapterSummary.characters();
+        final Set<String> deduplicatedCharacters = rawCharacters == null
+                ? Set.of()
+                : new HashSet<>(rawCharacters.stream().map(String::toLowerCase).toList());
         return chapterSummary.withCharacters(deduplicatedCharacters.stream().toList());
     }
 }

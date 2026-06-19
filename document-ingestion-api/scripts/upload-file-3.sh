@@ -7,7 +7,7 @@ TMPFILE=$(mktemp /tmp/upload-payload.XXXXXX.json)
 TITLE=$(basename "$1" | sed 's/\.[^.]*$//')
 
 echo "Building JSON payload from: $1 (title: $TITLE)"
-cat "$1" | jq -Rs --arg pattern '[*]\s[*]\s[*]\n' --arg title "$TITLE" \
+cat "$1" | jq -Rs --arg pattern 'Chapter .*\n' --arg title "$TITLE" \
     '{document: ., documentTitle: $title, chapterSplitPattern: $pattern}' > "$TMPFILE"
 
 echo "Payload written to $TMPFILE ($(wc -c < "$TMPFILE") bytes), sending..."

@@ -139,7 +139,7 @@ public class DocumentResource {
         final Pattern chapterSplitPattern = getChapterSplitPattern(request);
 
         try {
-            return importBookService.importBook(bookContents, chapterSplitPattern);
+            return importBookService.importBook(bookContents, chapterSplitPattern, request.documentTitle());
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(e.getMessage(), e);
         }

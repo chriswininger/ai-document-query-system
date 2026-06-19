@@ -3,21 +3,32 @@ package com.chriswininger.api.services;
 import com.chriswininger.api.documents.services.Chapter;
 import com.chriswininger.api.documents.services.ChapterService;
 import com.chriswininger.api.documents.services.ChapterSummaryAiServiceDirect;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
 class ChapterServiceTest {
@@ -51,10 +62,10 @@ class ChapterServiceTest {
         assertEquals("Chapter 2", chapters.get(2).label());
         assertEquals("Chapter 3", chapters.get(3).label());
 
-        assertEquals(true, chapters.get(0).content().contains("Some introductory text."));
-        assertEquals(true, chapters.get(1).content().contains("Some text for chapter one."));
-        assertEquals(true, chapters.get(2).content().contains("Some text for chapter two."));
-        assertEquals(true, chapters.get(3).content().contains("Some text for chapter three."));
+        assertTrue(chapters.get(0).content().contains("Some introductory text."));
+        assertTrue(chapters.get(1).content().contains("Some text for chapter one."));
+        assertTrue(chapters.get(2).content().contains("Some text for chapter two."));
+        assertTrue(chapters.get(3).content().contains("Some text for chapter three."));
     }
 
     @Test
@@ -158,6 +169,144 @@ class ChapterServiceTest {
                 System.out.println("error: " + ex.getMessage());
             }
             System.out.println("Time taken: " + (System.currentTimeMillis() - startTime));
+        }
+    }
+
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
+    void splitIntoChapters_tableOfContentsAtStart() throws IOException, InterruptedException {
+        final String book = """
+                Contents:
+
+                Chapter I. Oh My
+                Chapter II. The Birth of a Cat
+                Chapter III. The Birds are Alright
+                
+                Much Intro
+
+                The morning mist clung to the harbour like a veil. Ships rocked gently
+                at their moorings while the gulls wheeled and cried overhead.
+
+                Maybe Book
+                
+                Chapter I
+
+                By afternoon the wind had shifted. The captain stood at the rail,
+                watching the dark line of cloud building on the horizon.
+
+                Chapter II
+
+                Night fell swiftly. The lanterns were lit and the watch was set, and
+                still the wind kept rising.
+
+                Chapter III
+
+                When dawn broke there was no land in sight, only grey water stretching
+                to every quarter of the compass.
+                """;
+
+        final List<Chapter> result = chapterService.splitIntoChapters(book, null);
+
+        assertThat(result).hasSize(4);
+        assertEquals("Intro", result.getFirst().label());
+        assertThat(result.getFirst().content())
+                .contains("Much Intro")
+                .contains("The morning mist clung to the harbour like a veil. Ships rocked gently")
+                .contains("at their moorings while the gulls wheeled and cried overhead.")
+                .contains("Maybe Book");
+        assertEquals("Chapter I", result.get(1).label());
+        assertThat(result.get(1).content())
+                .contains("By afternoon the wind had shifted. The captain stood at the rail,")
+                .contains("watching the dark line of cloud building on the horizon.");
+        assertEquals("Chapter II", result.get(2).label());
+        assertThat(result.get(2).content())
+                .contains("Night fell swiftly. The lanterns were lit and the watch was set, and")
+                .contains("still the wind kept rising");
+        assertEquals("Chapter III", result.get(3).label());
+        assertThat(result.get(3).content())
+                .contains("When dawn broke there was no land in sight, only grey water stretching")
+                .contains("to every quarter of the compass.");
+    }
+
+    @TestFactory
+    @Tag("manual")
+    @Timeout(value = 10, unit = TimeUnit.MINUTES)
+    Stream<DynamicTest> splitIntoChapters_novels_aiDetection() throws IOException {
+        final List<Map<String, Object>> entries = loadNovelTestEntries();
+        if (entries.isEmpty()) {
+            return Stream.empty();
+        }
+
+        return entries.stream()
+                .filter(entry -> {
+                    final String fileName = (String) entry.get("fileName");
+                    final boolean available = getClass().getClassLoader()
+                            .getResource("testDocuments/novels/" + fileName) != null;
+                    if (!available) {
+                        System.out.println("Skipping (not found): " + fileName);
+                    }
+                    return available;
+                })
+                .map(entry -> {
+                    final String fileName = (String) entry.get("fileName");
+                    return DynamicTest.dynamicTest("splitIntoChapters: " + fileName, () -> {
+                        final String fullBook = loadNovelResource("testDocuments/novels/" + fileName);
+                        final List<Chapter> chapters = chapterService.splitIntoChapters(fullBook, null);
+
+                        System.out.println("=== " + fileName + " ===");
+                        System.out.println("Total chapters detected: " + chapters.size());
+                        for (int i = 0; i < chapters.size(); i++) {
+                            final Chapter ch = chapters.get(i);
+                            System.out.printf("  [%d] label=%-30s contentLength=%d%n",
+                                    i, ch.label(), ch.content().length());
+                        }
+
+                        final int chaptersGreaterThan = (int) entry.getOrDefault("chaptersGreaterThan", 1);
+                        assertTrue(chapters.size() > chaptersGreaterThan,
+                                "%s: expected >%d chapters, got %d"
+                                        .formatted(fileName, chaptersGreaterThan, chapters.size()));
+
+                        final long emptyChapters = chapters.stream()
+                                .filter(ch -> ch.content().trim().length() < 100)
+                                .count();
+                        System.out.println("Chapters with content < 100 chars: " + emptyChapters);
+                        final int emptyChaptersLessThan = (int) entry.getOrDefault("emptyChaptersLessThan", 5);
+                        assertTrue(emptyChapters < emptyChaptersLessThan,
+                                "%s: expected <%d near-empty chapters, got %d"
+                                        .formatted(fileName, emptyChaptersLessThan, emptyChapters));
+
+                        final long substantialChapters = chapters.stream()
+                                .filter(ch -> ch.content().trim().length() > 500)
+                                .count();
+                        System.out.println("Chapters with content > 500 chars: " + substantialChapters);
+                        final int substantialGreaterThan = (int) entry.getOrDefault("substantialChaptersGreaterThan", 1);
+                        assertTrue(substantialChapters > substantialGreaterThan,
+                                "%s: expected >%d substantial chapters, got %d"
+                                        .formatted(fileName, substantialGreaterThan, substantialChapters));
+                    });
+                });
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> loadNovelTestEntries() throws IOException {
+        try (final InputStream is = getClass().getClassLoader()
+                .getResourceAsStream("testDocuments/novels/ChapterServiceTest.yaml")) {
+            if (is == null) {
+                System.out.println("ChapterServiceTest.yaml not found, skipping novel tests");
+                return Collections.emptyList();
+            }
+            final ObjectMapper yaml = new ObjectMapper(new YAMLFactory());
+            final Map<String, Object> root = yaml.readValue(is, Map.class);
+            return (List<Map<String, Object>>) root.getOrDefault("splitIntoChapters", Collections.emptyList());
+        }
+    }
+
+    private String loadNovelResource(final String resourcePath) throws IOException {
+        try (final InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+            if (is == null) {
+                throw new IOException("Resource not found: " + resourcePath);
+            }
+            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 

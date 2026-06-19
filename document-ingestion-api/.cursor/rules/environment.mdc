@@ -25,3 +25,9 @@ The PostgreSQL database runs on the **host only** — it is NOT reachable from i
 - Start it on the host with: `bash start-db.sh`
 - Never attempt to start the DB or run Flyway migrations from inside the container
 - If a DB connection error occurs, report it to the user and ask them to run it on the host
+
+# File locks
+
+If you see that there is a fileHashes.lock that is preventing you from you building, it probably
+means that I have left the application running on host. You should ask me to stop it so that you can
+proceed rather than deleting the lock.

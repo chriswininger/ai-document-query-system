@@ -54,10 +54,12 @@ public class ImportBookService {
 
     public ImportedBookResult importBook(
             final String bookContents,
-            final Pattern chapterSplitPattern
+            final Pattern chapterSplitPattern,
+            final String documentTitle
     ) throws IOException, InterruptedException {
         LOG.infof("(importBook) Summarizing based on front and back of book");
-        final var bookMetaDataSummary = bookMetaExtractionService.extractMetaDataFromTheBook(bookContents, chapterSplitPattern);
+        final var bookMetaDataSummary = bookMetaExtractionService
+                .extractMetaDataFromTheBook(bookContents, chapterSplitPattern, documentTitle);
         LOG.infof("(importBook) bookMetaDataSummary %s", bookMetaDataSummary);
 
         final var chapters = chapterService.splitIntoChapters(bookContents, chapterSplitPattern);
@@ -65,6 +67,8 @@ public class ImportBookService {
 
         final List<Chapter> summarizedChapters = new ArrayList<>();
         final List<ChapterSummaryResult> chapterSummaryResults = new ArrayList<>();
+
+        System.out.println("!!! title: " + bookMetaDataSummary.bookMetadataAnalysisResult().title());
         for (int i = 0; i < chapters.size(); i++) {
             final long startTime = System.currentTimeMillis();
             if ("Intro".equals(chapters.get(i).label())) {

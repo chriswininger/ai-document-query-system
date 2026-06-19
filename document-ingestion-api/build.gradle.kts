@@ -31,6 +31,8 @@ dependencies {
     implementation("com.chriswininger:ollama-client")
     testImplementation("io.quarkus:quarkus-junit")
     testImplementation("io.rest-assured:rest-assured")
+    testImplementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
+    testImplementation("org.assertj:assertj-core:3.27.3")
 
     jooqCodegen("org.jooq:jooq-meta-extensions:3.21.2")
 }
