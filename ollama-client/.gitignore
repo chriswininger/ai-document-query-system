@@ -1,0 +1,21 @@
+# Gradle
+.gradle/
+build/
+
+# Eclipse / Buildship
+.classpath
+.project
+.settings/
+bin/
+
+# IntelliJ
+.idea
+*.ipr
+*.iml
+*.iws
+
+# OSX
+.DS_Store
+
+# Local environment
+.env

@@ -27,7 +27,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
@@ -97,8 +96,6 @@ class ChapterServiceTest {
                 
                   He still didn't know what he would say. But for the first time all evening, that felt like enough.
                 """));
-
-        System.out.println("!!! chapter: " + chp);
     }
 
     @Test
@@ -109,8 +106,6 @@ class ChapterServiceTest {
         );
 
         final var chp = chapterService.summarizeChapter(new Chapter("Chapter 1", content));
-
-        System.out.println("!!! chp: " + chp);
     }
 
 
@@ -239,13 +234,19 @@ class ChapterServiceTest {
 
         return entries.stream()
                 .filter(entry -> {
+                    final Boolean skip = (Boolean) entry.getOrDefault("skip", false);
                     final String fileName = (String) entry.get("fileName");
                     final boolean available = getClass().getClassLoader()
                             .getResource("testDocuments/novels/" + fileName) != null;
                     if (!available) {
                         System.out.println("Skipping (not found): " + fileName);
+                        return false;
+                    } else if (skip) {
+                        System.out.println("Skipping (disable): " + fileName);
+                        return false;
                     }
-                    return available;
+
+                    return true;
                 })
                 .map(entry -> {
                     final String fileName = (String) entry.get("fileName");
@@ -261,7 +262,10 @@ class ChapterServiceTest {
                                     i, ch.label(), ch.content().length());
                         }
 
+                        // read expectations from test file
                         final int chaptersGreaterThan = (int) entry.getOrDefault("chaptersGreaterThan", 1);
+
+
                         assertTrue(chapters.size() > chaptersGreaterThan,
                                 "%s: expected >%d chapters, got %d"
                                         .formatted(fileName, chaptersGreaterThan, chapters.size()));

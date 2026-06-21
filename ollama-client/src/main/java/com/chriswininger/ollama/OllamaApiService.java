@@ -1,7 +1,6 @@
 package com.chriswininger.ollama;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -29,6 +28,7 @@ public class OllamaApiService {
     private final long numCtx;
     private final int timeoutSeconds;
     private final boolean verboseRequestLogging;
+    private final String apiKey;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public OllamaApiService(
@@ -38,11 +38,23 @@ public class OllamaApiService {
             final int timeoutSeconds,
             final boolean verboseRequestLogging
     ) {
+        this(baseUrl, modelName, numCtx, timeoutSeconds, verboseRequestLogging, null);
+    }
+
+    public OllamaApiService(
+            final String baseUrl,
+            final String modelName,
+            final long numCtx,
+            final int timeoutSeconds,
+            final boolean verboseRequestLogging,
+            final String apiKey
+    ) {
         this.baseUrl = baseUrl;
         this.modelName = modelName;
         this.numCtx = numCtx;
         this.timeoutSeconds = timeoutSeconds;
         this.verboseRequestLogging = verboseRequestLogging;
+        this.apiKey = apiKey;
     }
 
     public String callOllamaPlainTextResponse(
@@ -50,22 +62,40 @@ public class OllamaApiService {
             final String userMessage,
             final boolean think
     ) throws IOException, InterruptedException {
-        final String payload = buildPayload(systemPrompt, userMessage, think, null);
+        return callOllamaPlainTextResponse(
+                systemPrompt,
+                List.of(new OllamaChatMessage("user", userMessage)),
+                OllamaRequestOptions.withThink(think)
+        );
+    }
+
+    public String callOllamaPlainTextResponse(
+            final String systemPrompt,
+            final List<OllamaChatMessage> userMessages,
+            final OllamaRequestOptions options
+    ) throws IOException, InterruptedException {
+        final String payload = buildPayload(systemPrompt, userMessages, options, null);
 
         if (verboseRequestLogging) {
             LOG.infof("OLLAMA request payload\n\n==========\n%s\n===========", payload);
         }
 
+        final String effectiveBaseUrl = options.baseUrl() != null ? options.baseUrl() : baseUrl;
+        final String effectiveApiKey = options.apiKey() != null ? options.apiKey() : apiKey;
+
         final HttpClient client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(30))
                 .build();
 
-        final HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/api/chat"))
+        var reqBuilder = HttpRequest.newBuilder()
+                .uri(URI.create(effectiveBaseUrl + "/api/chat"))
                 .header("Content-Type", "application/json")
                 .timeout(Duration.ofSeconds(timeoutSeconds))
-                .POST(HttpRequest.BodyPublishers.ofString(payload))
-                .build();
+                .POST(HttpRequest.BodyPublishers.ofString(payload));
+        if (effectiveApiKey != null) {
+            reqBuilder.header("Authorization", "Bearer " + effectiveApiKey);
+        }
+        final HttpRequest request = reqBuilder.build();
 
         final HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -77,6 +107,7 @@ public class OllamaApiService {
 
         final JsonNode outer = objectMapper.readTree(body);
 
+        final boolean think = options.think() != null && options.think();
         if (think) {
             final String thinking = outer.path("message").path("thinking").asText();
             LOG.debugf("""
@@ -95,23 +126,43 @@ public class OllamaApiService {
             final boolean think,
             final Class<T> recordClass
     ) throws IOException, InterruptedException {
+        return callOllamaStructuredResponse(
+                systemPrompt,
+                List.of(new OllamaChatMessage("user", userMessage)),
+                OllamaRequestOptions.withThink(think),
+                recordClass
+        );
+    }
+
+    public <T extends Record> T callOllamaStructuredResponse(
+            final String systemPrompt,
+            final List<OllamaChatMessage> userMessages,
+            final OllamaRequestOptions options,
+            final Class<T> recordClass
+    ) throws IOException, InterruptedException {
         final ObjectNode format = buildFormatBlock(recordClass);
-        final String payload = buildPayload(systemPrompt, userMessage, think, format);
+        final String payload = buildPayload(systemPrompt, userMessages, options, format);
 
         if (verboseRequestLogging) {
             LOG.infof("OLLAMA request payload\n\n==========\n%s\n===========", payload);
         }
 
+        final String effectiveBaseUrl = options.baseUrl() != null ? options.baseUrl() : baseUrl;
+        final String effectiveApiKey = options.apiKey() != null ? options.apiKey() : apiKey;
+
         final HttpClient client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(30))
                 .build();
 
-        final HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/api/chat"))
+        var reqBuilder = HttpRequest.newBuilder()
+                .uri(URI.create(effectiveBaseUrl + "/api/chat"))
                 .header("Content-Type", "application/json")
                 .timeout(Duration.ofSeconds(timeoutSeconds))
-                .POST(HttpRequest.BodyPublishers.ofString(payload))
-                .build();
+                .POST(HttpRequest.BodyPublishers.ofString(payload));
+        if (effectiveApiKey != null) {
+            reqBuilder.header("Authorization", "Bearer " + effectiveApiKey);
+        }
+        final HttpRequest request = reqBuilder.build();
 
         final HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -124,6 +175,7 @@ public class OllamaApiService {
         final JsonNode outer = objectMapper.readTree(body);
 
         LOG.info("!!! body: " + outer);
+        final boolean think = options.think() != null && options.think();
         if (think) {
             final String thinking = outer.path("message").path("thinking").asText();
             LOG.debugf("""
@@ -255,17 +307,18 @@ public class OllamaApiService {
 
     private String buildPayload(
             final String systemPrompt,
-            final String userMessage,
-            final boolean think,
+            final List<OllamaChatMessage> userMessages,
+            final OllamaRequestOptions requestOptions,
             final ObjectNode format
     ) throws IOException {
         final ObjectNode root = objectMapper.createObjectNode();
-        root.put("model", modelName);
+        root.put("model", requestOptions.model() != null ? requestOptions.model() : modelName);
         root.put("stream", false);
 
         final ObjectNode options = root.putObject("options");
-        options.put("num_ctx", numCtx);
+        options.put("num_ctx", requestOptions.numCtx() != null ? requestOptions.numCtx() : numCtx);
 
+        final boolean think = requestOptions.think() != null && requestOptions.think();
         if (think) {
             options.put("think", true);
         }
@@ -278,9 +331,12 @@ public class OllamaApiService {
         final ObjectNode systemMsg = messages.addObject();
         systemMsg.put("role", "system");
         systemMsg.put("content", systemPrompt);
-        final ObjectNode userMsg = messages.addObject();
-        userMsg.put("role", "user");
-        userMsg.put("content", userMessage);
+
+        for (final OllamaChatMessage msg : userMessages) {
+            final ObjectNode msgNode = messages.addObject();
+            msgNode.put("role", msg.role());
+            msgNode.put("content", msg.content());
+        }
 
         return objectMapper.writeValueAsString(root);
     }

@@ -1,9 +1,10 @@
 package com.chriswininger.api.documents.services;
 
 import com.chriswininger.api.dto.inferenceresults.ChapterSplitterAIAnalysisResult;
-import com.chriswininger.api.dto.inferenceresults.ChapterSplitterResult;
 import com.chriswininger.api.dto.inferenceresults.TableOfContentsAnalysis;
 import com.chriswininger.ollama.OllamaApiService;
+import com.chriswininger.ollama.OllamaChatMessage;
+import com.chriswininger.ollama.OllamaRequestOptions;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.jboss.logging.Logger;
 
@@ -18,8 +19,7 @@ import java.util.regex.PatternSyntaxException;
 public class ChapterSplitAIService {
     private static final Logger LOG = Logger.getLogger(ChapterSplitAIService.class);
 
-    private static final int AI_DETECTION_FRONT_SKIP = 10000;
-    private static final int AI_DETECTION_SAMPLE_SIZE = 16000;
+    private static final int AI_DETECTION_SAMPLE_SIZE = 32000;
 
     private static final int MAX_RETRIES = 3;
     private static final int MIN_MATCHES = 2;
@@ -58,45 +58,6 @@ public class ChapterSplitAIService {
         Write a single Java regular expression that matches every chapter heading in this book.
         The regex MUST start with \\n and end with \\n.
         Use .* for the variable part. Do NOT use \\d+, ^, $, or .*? (lazy).
-        Write ONLY the regex, nothing else.
-
-        Respond in plain text only. Do NOT use JSON, markdown, or code fences.
-        """;
-
-    private static final String SYSTEM_PROMPT_RETRY = """
-        You are a document structure analyst. You will be given text from the beginning of a book.
-        Your task is to find the pattern used for chapter headings so the book can be split into chapters.
-
-        A PREVIOUS ATTEMPT FAILED. The regex shown below did not work:
-        Previous regex: %s
-        Reason it failed: %s
-
-        You must suggest a DIFFERENT regex. Learn from the failure.
-
-        CRITICAL RULES:
-        - The regex MUST start with \\n so it only matches headings on their own line.
-        - Use .* (greedy) to match the variable part. NEVER use .*? (lazy).
-        - The regex MUST end with \\n to capture the full heading line.
-        - Do NOT use ^ or $ anchors.
-        - Use .* for variable parts (numbers, titles). NEVER use \\d+.
-        - The regex must work with Java's Pattern.compile().
-
-        Example regex patterns that work well:
-        - \\nCHAPTER .*\\n   matches lines like "CHAPTER ONE", "CHAPTER 1", "CHAPTER TWO"
-        - \\nChapter .*\\n   matches lines like "Chapter 1: The Beginning", "Chapter III."
-        - \\n[*]\\s[*]\\s[*]\\n   matches scene break markers "* * *" on their own line
-
-        Respond with:
-
-        Chapter Heading Examples:
-        Copy 3 to 5 chapter headings exactly as they appear in the text, one per line.
-
-        Pattern Description:
-        Describe in one sentence what the chapter headings look like.
-
-        Split Regex:
-        Write a single Java regular expression that matches every chapter heading in this book.
-        The regex MUST start with \\n and end with \\n.
         Write ONLY the regex, nothing else.
 
         Respond in plain text only. Do NOT use JSON, markdown, or code fences.
@@ -145,27 +106,15 @@ public class ChapterSplitAIService {
         this.ollamaApiService = ollamaApiService;
     }
 
-    public ChapterSplitterResult detectSplitExpression(
+    public ChapterSplitterAIAnalysisResult detectSplitExpression(
             final String document
     ) throws IOException, InterruptedException {
 
-        final int safeStart = 0;
-        // Math.min(AI_DETECTION_FRONT_SKIP, Math.max(0, document.length() - AI_DETECTION_SAMPLE_SIZE));
-        String promptSample = document.substring(safeStart,
-                Math.min(document.length(), safeStart + AI_DETECTION_SAMPLE_SIZE));
+        final String promptSample = document.substring(0,
+                Math.min(document.length(), AI_DETECTION_SAMPLE_SIZE));
 
-        final var tableOfContentsResults = findTableOfContents(promptSample);
-        if (tableOfContentsResults.containsTableOfContents()) {
-            // strip the table of contents before looking for chapters
-            final int initialLen = promptSample.length();
-            promptSample = promptSample.replace(tableOfContentsResults.tableOfConents(), "");
-
-            LOG.infof("Removed table of contents for chapter analysis. Before Len '%s', After Len: '%s",
-                    initialLen, promptSample.length());
-        }
-
-        LOG.infof("(detectSplitPattern) sampling chars %d–%d of %d",
-                safeStart, safeStart + promptSample.length(), document.length());
+        LOG.infof("(detectSplitPattern) sampling chars 0–%d of %d",
+                promptSample.length(), document.length());
 
         final String plainTextAnalysis = analyzeUnstructured(promptSample);
         LOG.infof("(detectSplitExpression) unstructured pass complete, running structured pass");
@@ -176,39 +125,54 @@ public class ChapterSplitAIService {
         if (validation.valid) {
             LOG.infof("(detectSplitExpression) regex validated on first attempt: %s (%d matches)",
                     result.splitExpression(), validation.matchCount);
-            return new ChapterSplitterResult(result, tableOfContentsResults);
+            return result;
         }
 
         return retryWithFeedback(
                 promptSample,
                 document,
-                tableOfContentsResults,
+                plainTextAnalysis,
                 result.splitExpression(),
                 validation.failureReason);
     }
 
-    private ChapterSplitterResult retryWithFeedback(
+    private ChapterSplitterAIAnalysisResult retryWithFeedback(
             final String promptSample,
             final String fullDocument,
-            final TableOfContentsAnalysis tableOfContentsAnalysis,
+            final String firstAnalysis,
             final String previousRegex,
             final String failureReason
     ) throws IOException, InterruptedException {
+        final List<OllamaChatMessage> history = new ArrayList<>();
+        history.add(new OllamaChatMessage("user", buildUserMessage(promptSample)));
+        history.add(new OllamaChatMessage("assistant", firstAnalysis));
+
         String lastRegex = previousRegex;
         String lastReason = failureReason;
 
+        System.out.println("!!! try: " + lastRegex);
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             LOG.infof("(retryWithFeedback) retry %d/%d — previous regex: %s — reason: %s",
                     attempt, MAX_RETRIES, lastRegex, lastReason);
 
-            final String retryAnalysis = analyzeRetry(promptSample, lastRegex, lastReason);
+            history.add(new OllamaChatMessage("user",
+                    "The regex `%s` did not work. Reason: %s. Please suggest a DIFFERENT regex."
+                            .formatted(lastRegex, lastReason)));
+
+            final String retryAnalysis = ollamaApiService.callOllamaPlainTextResponse(
+                    SYSTEM_PROMPT_UNSTRUCTURED, history, OllamaRequestOptions.withThink(true));
+            history.add(new OllamaChatMessage("assistant", retryAnalysis));
+
             final ChapterSplitterAIAnalysisResult result = autoCorrectExpression(analyzeStructured(retryAnalysis));
+
+
+            System.out.println("!!! try: " + result.splitExpression());
             final ValidationOutcome validation = validate(result, fullDocument);
 
             if (validation.valid) {
                 LOG.infof("(retryWithFeedback) regex validated on retry %d: %s (%d matches)",
                         attempt, result.splitExpression(), validation.matchCount);
-                return new ChapterSplitterResult(result, tableOfContentsAnalysis);
+                return result;
             }
 
             lastRegex = result.splitExpression();
@@ -218,16 +182,16 @@ public class ChapterSplitAIService {
         LOG.warnf("(retryWithFeedback) all %d retries exhausted, returning last result with regex: %s",
                 MAX_RETRIES, lastRegex);
 
-        return new ChapterSplitterResult(new ChapterSplitterAIAnalysisResult(lastRegex),  tableOfContentsAnalysis);
+        return new ChapterSplitterAIAnalysisResult(lastRegex);
     }
 
     private static ChapterSplitterAIAnalysisResult autoCorrectExpression(final ChapterSplitterAIAnalysisResult result) {
-        if (result != null && result.splitExpression() != null && result.splitExpression().contains(".*?")) {
-            final String corrected = result.splitExpression().replace(".*?", ".*");
-            LOG.infof("(autoCorrectExpression) replaced lazy .*? with greedy .* : %s -> %s",
-                    result.splitExpression(), corrected);
-            return new ChapterSplitterAIAnalysisResult(corrected);
-        }
+//        if (result != null && result.splitExpression() != null && result.splitExpression().contains(".*?")) {
+//            final String corrected = result.splitExpression().replace(".*?", ".*");
+//            LOG.infof("(autoCorrectExpression) replaced lazy .*? with greedy .* : %s -> %s",
+//                    result.splitExpression(), corrected);
+//            return new ChapterSplitterAIAnalysisResult(corrected);
+//        }
         return result;
     }
 
@@ -339,7 +303,12 @@ public class ChapterSplitAIService {
     }
 
     private String analyzeUnstructured(final String frontText) throws IOException, InterruptedException {
-        final String userMessage = """
+        return ollamaApiService.callOllamaPlainTextResponse(
+                SYSTEM_PROMPT_UNSTRUCTURED, buildUserMessage(frontText), true);
+    }
+
+    private static String buildUserMessage(final String frontText) {
+        return """
                 ===== Book Text (beginning) =====
                 %s
                 =================================
@@ -347,8 +316,6 @@ public class ChapterSplitAIService {
                 Based on the text above, identify the chapter heading pattern and provide a Java regex \
                 that matches all chapter headings.
                 """.formatted(frontText).trim();
-
-        return ollamaApiService.callOllamaPlainTextResponse(SYSTEM_PROMPT_UNSTRUCTURED, userMessage, true);
     }
 
     public TableOfContentsAnalysis findTableOfContents(final String frontText) throws IOException, InterruptedException {
@@ -358,7 +325,8 @@ public class ChapterSplitAIService {
                 =================================
                 
                 Based on the text above, identify the if there is a table of contents. Return the full text of the
-                table of contents if it exists.
+                table of contents if it exists. Reproduce the table of contents exacly as it appears. Do not remove any
+                formatting characters.
                 
                 Example 1:
                 
@@ -397,25 +365,6 @@ public class ChapterSplitAIService {
                 structuringMessage.formatted(ollamaApiService.buildExampleJson(TableOfContentsAnalysis.class)),
                 userMessage, false, TableOfContentsAnalysis.class);
 
-    }
-
-    private String analyzeRetry(
-            final String frontText,
-            final String previousRegex,
-            final String failureReason
-    ) throws IOException, InterruptedException {
-        final String systemPrompt = SYSTEM_PROMPT_RETRY.formatted(previousRegex, failureReason);
-
-        final String userMessage = """
-                ===== Book Text (beginning) =====
-                %s
-                =================================
-
-                The previous regex did not work. Based on the text above, suggest a different Java regex \
-                that matches all chapter headings.
-                """.formatted(frontText).trim();
-
-        return ollamaApiService.callOllamaPlainTextResponse(systemPrompt, userMessage, true);
     }
 
     private ChapterSplitterAIAnalysisResult analyzeStructured(

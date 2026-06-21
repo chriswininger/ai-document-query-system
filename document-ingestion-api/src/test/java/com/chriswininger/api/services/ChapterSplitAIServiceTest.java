@@ -2,7 +2,6 @@ package com.chriswininger.api.services;
 
 import com.chriswininger.api.documents.services.ChapterSplitAIService;
 import com.chriswininger.api.dto.inferenceresults.ChapterSplitterAIAnalysisResult;
-import com.chriswininger.api.dto.inferenceresults.ChapterSplitterResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.quarkus.test.junit.QuarkusTest;
@@ -58,17 +57,16 @@ class ChapterSplitAIServiceTest {
                 or eleven years old when his mother had disappeared.
                 """;
 
-        final ChapterSplitterResult result = chapterSplitAIService.detectSplitExpression(bookContents);
-        final var splitResults = result.aiAnalysisResult();
+        final ChapterSplitterAIAnalysisResult result = chapterSplitAIService.detectSplitExpression(bookContents);
 
         assertNotNull(result, "Result should not be null");
-        assertNotNull(splitResults.splitExpression(), "splitExpression should not be null");
-        assertFalse(splitResults.splitExpression().isBlank(), "splitExpression should not be blank");
+        assertNotNull(result.splitExpression(), "splitExpression should not be null");
+        assertFalse(result.splitExpression().isBlank(), "splitExpression should not be blank");
 
-        System.out.println("Detected splitExpression: " + splitResults.splitExpression());
+        System.out.println("Detected splitExpression: " + result.splitExpression());
 
         final Pattern pattern = assertDoesNotThrow(
-                () -> Pattern.compile(splitResults.splitExpression()),
+                () -> Pattern.compile(result.splitExpression()),
                 "splitExpression must be a valid Java regex");
 
         final Matcher matcher = pattern.matcher(bookContents);
@@ -108,15 +106,15 @@ class ChapterSplitAIServiceTest {
                 By evening the whole town knew, and the knowing changed everything.
                 """;
 
-        final ChapterSplitterResult result = chapterSplitAIService.detectSplitExpression(bookFront);
+        final ChapterSplitterAIAnalysisResult result = chapterSplitAIService.detectSplitExpression(bookFront);
 
         assertNotNull(result);
-        assertNotNull(result.aiAnalysisResult().splitExpression());
+        assertNotNull(result.splitExpression());
 
-        System.out.println("Detected splitExpression: " + result.aiAnalysisResult().splitExpression());
+        System.out.println("Detected splitExpression: " + result.splitExpression());
 
         final Pattern pattern = assertDoesNotThrow(
-                () -> Pattern.compile(result.aiAnalysisResult().splitExpression()),
+                () -> Pattern.compile(result.splitExpression()),
                 "splitExpression must be a valid Java regex");
 
         final Matcher matcher = pattern.matcher(bookFront);
@@ -152,15 +150,15 @@ class ChapterSplitAIServiceTest {
                 to every quarter of the compass.
                 """;
 
-        final ChapterSplitterResult result = chapterSplitAIService.detectSplitExpression(bookFront);
+        final ChapterSplitterAIAnalysisResult result = chapterSplitAIService.detectSplitExpression(bookFront);
 
         assertNotNull(result);
-        assertNotNull(result.aiAnalysisResult().splitExpression());
+        assertNotNull(result.splitExpression());
 
-        System.out.println("Detected splitExpression: " + result.aiAnalysisResult().splitExpression());
+        System.out.println("Detected splitExpression: " + result.splitExpression());
 
         final Pattern pattern = assertDoesNotThrow(
-                () -> Pattern.compile(result.aiAnalysisResult().splitExpression()),
+                () -> Pattern.compile(result.splitExpression()),
                 "splitExpression must be a valid Java regex");
 
         final Matcher matcher = pattern.matcher(bookFront);
@@ -171,87 +169,5 @@ class ChapterSplitAIServiceTest {
         }
 
         assertTrue(matchCount >= 3, "Expected at least 3 scene break matches, got " + matchCount);
-    }
-
-
-    // TODO: these will probably fail when we shift table of contents detection to ChapterService, likely we should
-    // just be testing this as a function of ChapterService
-    @TestFactory
-    @Tag("manual")
-    @Timeout(value = 10, unit = TimeUnit.MINUTES)
-    Stream<DynamicTest> detectSplitExpression_novels() throws IOException {
-        final List<Map<String, Object>> entries = loadNovelTestEntries();
-        if (entries.isEmpty()) {
-            return Stream.empty();
-        }
-
-        return entries.stream()
-                .filter(entry -> {
-                    final String fileName = (String) entry.get("fileName");
-                    final boolean available = getClass().getClassLoader()
-                            .getResource("testDocuments/novels/" + fileName) != null;
-                    if (!available) {
-                        System.out.println("Skipping (not found): " + fileName);
-                    }
-                    return available;
-                })
-                .map(entry -> {
-                    final String fileName = (String) entry.get("fileName");
-                    return DynamicTest.dynamicTest("detectSplitExpression: " + fileName, () -> {
-                        final String fullBook = loadNovelResource("testDocuments/novels/" + fileName);
-
-
-                        final ChapterSplitterResult result =
-                                chapterSplitAIService.detectSplitExpression(fullBook);
-
-                        assertNotNull(result, "Result should not be null");
-                        assertNotNull(result.aiAnalysisResult().splitExpression(), "splitExpression should not be null");
-                        assertFalse(result.aiAnalysisResult().splitExpression().isBlank(), "splitExpression should not be blank");
-
-                        System.out.println("=== " + fileName + " ===");
-                        System.out.println("Detected splitExpression: " + result.aiAnalysisResult().splitExpression());
-
-                        final Pattern pattern = assertDoesNotThrow(
-                                () -> Pattern.compile(result.aiAnalysisResult().splitExpression()),
-                                "splitExpression must be a valid Java regex");
-
-                        final Matcher matcher = pattern.matcher(fullBook);
-                        int matchCount = 0;
-                        while (matcher.find()) {
-                            matchCount++;
-                            System.out.println("Match " + matchCount + ": ["
-                                    + matcher.group().replace("\n", "\\n") + "]");
-                        }
-
-                        System.out.println("Total chapter matches: " + matchCount);
-                        final int matchesGreaterThan = (int) entry.getOrDefault("matchesGreaterThan", 1);
-                        assertTrue(matchCount > matchesGreaterThan,
-                                "%s: expected >%d matches, got %d"
-                                        .formatted(fileName, matchesGreaterThan, matchCount));
-                    });
-                });
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> loadNovelTestEntries() throws IOException {
-        try (final InputStream is = getClass().getClassLoader()
-                .getResourceAsStream("testDocuments/novels/ChapterSplitAIServiceTest.yaml")) {
-            if (is == null) {
-                System.out.println("ChapterSplitAIServiceTest.yaml not found, skipping novel tests");
-                return Collections.emptyList();
-            }
-            final ObjectMapper yaml = new ObjectMapper(new YAMLFactory());
-            final Map<String, Object> root = yaml.readValue(is, Map.class);
-            return (List<Map<String, Object>>) root.getOrDefault("detectSplitExpression", Collections.emptyList());
-        }
-    }
-
-    private String loadNovelResource(final String resourcePath) throws IOException {
-        try (final InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
-            if (is == null) {
-                throw new IOException("Resource not found: " + resourcePath);
-            }
-            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
-        }
     }
 }
