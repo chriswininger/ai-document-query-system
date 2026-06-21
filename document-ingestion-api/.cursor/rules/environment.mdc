@@ -5,12 +5,12 @@ alwaysApply: true
 
 # Environment & Toolchain
 
-SDKman is installed at `/usr/local/sdkman` (NOT `~/.sdkman`). Java, Quarkus CLI, and Gradle all require it.
+Java, Quarkus CLI, and Gradle are already on PATH — no manual sourcing of SDKman is needed.
 
-Any shell command using `java`, `quarkus`, or `./gradlew` must source SDKman first:
+Just run commands directly:
 
 ```bash
-source /usr/local/sdkman/bin/sdkman-init.sh && ./gradlew <task>
+./gradlew <task>
 ```
 
 - Java: 25 (Amazon Corretto)

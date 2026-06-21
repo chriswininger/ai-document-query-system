@@ -66,3 +66,37 @@ private static final Logger LOG = Logger.getLogger(MyService.class);
 ## Text Blocks
 
 Use text blocks (`"""`) for multi-line strings such as prompts and user messages. Use `.formatted(...)` for interpolation and `.trim()` where needed.
+
+## LangChain4j API Patterns
+
+The project uses LangChain4j 1.x (`dev.langchain4j:langchain4j`). Key API details:
+
+### AiServices — simple singleton (no tools)
+
+Use `AiServices.create()` when the service has no per-call state. Produce it as a CDI singleton.
+
+```java
+AiServices.create(MyAiService.class, chatModel);
+```
+
+### AiServices — with tools (per-call state)
+
+Use `AiServices.builder()` when tools are bound per invocation. Create a factory bean instead of a singleton.
+
+```java
+AiServices.builder(MyAiService.class)
+        .chatModel(model)          // NOT .chatLanguageModel()
+        .tools(toolInstance)
+        .maxSequentialToolsInvocations(10)
+        .build();
+```
+
+### Key annotations by package
+
+| Annotation | Package | Usage |
+|---|---|---|
+| `@Tool` | `dev.langchain4j.agent.tool` | Marks a method as an LLM-callable tool |
+| `@P` | `dev.langchain4j.agent.tool` | Describes a tool method parameter |
+| `@SystemMessage` | `dev.langchain4j.service` | System prompt on an AI service interface method |
+| `@UserMessage` | `dev.langchain4j.service` | User message template on an AI service interface method |
+| `@V` | `dev.langchain4j.service` | Binds a method parameter to a template variable |
