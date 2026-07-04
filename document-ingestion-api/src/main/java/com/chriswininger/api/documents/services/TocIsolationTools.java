@@ -22,7 +22,7 @@ public class TocIsolationTools {
 
     @Tool("Returns the total number of characters in the document.")
     public int documentLength() {
-        LOG.debugf("(documentLength) returning %d", document.length());
+        LOG.infof("(documentLength) returning %d", document.length());
         return document.length();
     }
 
@@ -36,7 +36,7 @@ public class TocIsolationTools {
         final int clampedEnd = Math.min(document.length(), endIndex);
         final int effectiveEnd = Math.min(clampedEnd, clampedStart + MAX_EXTRACT_LENGTH);
 
-        LOG.debugf("(extractText) [%d, %d) -> clamped [%d, %d)", startIndex, endIndex, clampedStart, effectiveEnd);
+        LOG.infof("(extractText) [%d, %d) -> clamped [%d, %d)", startIndex, endIndex, clampedStart, effectiveEnd);
         return document.substring(clampedStart, effectiveEnd);
     }
 
@@ -48,7 +48,7 @@ public class TocIsolationTools {
     ) {
         final int clampedFrom = Math.max(0, fromIndex);
         final int result = document.indexOf(query, clampedFrom);
-        LOG.debugf("(searchText) query='%s' fromIndex=%d -> %d", query, clampedFrom, result);
+        LOG.infof("(searchText) query='%s' fromIndex=%d -> %d", query, clampedFrom, result);
         return result;
     }
 

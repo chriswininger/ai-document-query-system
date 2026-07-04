@@ -8,11 +8,13 @@ import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.time.Duration;
+import java.util.Map;
+import java.util.Optional;
 
 @ApplicationScoped
 public class TocIsolationAiServiceFactory {
 
-    @ConfigProperty(name = "ollama.base-url")
+    @ConfigProperty(name = "ollama.toc-isolation.base-url", defaultValue = "https://ollama.com")
     String baseUrl;
 
     @ConfigProperty(name = "ollama.toc-isolation.model-name", defaultValue = "gemma4:e4b")
@@ -24,13 +26,21 @@ public class TocIsolationAiServiceFactory {
     @ConfigProperty(name = "ollama.timeout-seconds", defaultValue = "120")
     long timeoutSeconds;
 
+    @ConfigProperty(name = "ollama.toc-isolation.api-key")
+    Optional<String> apiKey;
+
     public TocIsolationAiService create(final TocIsolationTools tools) {
-        final var model = OllamaChatModel.builder()
+        final var builder = OllamaChatModel.builder()
                 .baseUrl(baseUrl)
                 .modelName(modelName)
                 .numCtx(numCtx)
-                .timeout(Duration.ofSeconds(timeoutSeconds))
-                .build();
+                .think(true)
+                .timeout(Duration.ofSeconds(timeoutSeconds));
+
+        apiKey.filter(key -> !key.isBlank())
+                .ifPresent(key -> builder.customHeaders(Map.of("Authorization", "Bearer " + key)));
+
+        final var model = builder.build();
 
         return AiServices.builder(TocIsolationAiService.class)
                 .chatModel(model)

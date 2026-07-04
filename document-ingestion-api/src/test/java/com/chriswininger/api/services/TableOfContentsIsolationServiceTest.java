@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Timeout;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -110,12 +111,12 @@ class TableOfContentsIsolationServiceTest {
     @Tag("manual")
     @Timeout(value = 10, unit = TimeUnit.MINUTES)
     Stream<DynamicTest> isolateTableOfContents_novels() throws IOException {
-        final List<Map<String, Object>> entries = loadTestEntries();
-        if (entries.isEmpty()) {
+        final List<Map<String, Object>> testFileEntries = loadTestEntries();
+        if (testFileEntries.isEmpty()) {
             return Stream.empty();
         }
 
-        return entries.stream()
+        return testFileEntries.stream()
                 .filter(entry -> {
                     final String fileName = (String) entry.get("fileName");
                     final boolean available = getClass().getClassLoader()
@@ -125,51 +126,74 @@ class TableOfContentsIsolationServiceTest {
                     }
                     return available;
                 })
-                .map(entry -> {
-                    final String fileName = (String) entry.get("fileName");
+                .map(testFileEntry -> {
+                    final String fileName = (String) testFileEntry.get("fileName");
+
+                    final List<String> tocContains =
+                            (List<String>) testFileEntry.getOrDefault("tocContains", Collections.emptyList());
+                    final List<String> tocDoesNotContainContains =
+                            (List<String>) testFileEntry.getOrDefault("tocDoesNotContainContains", Collections.emptyList());
+
                     return DynamicTest.dynamicTest("isolateTableOfContents: " + fileName, () -> {
                         final String fullBook = loadNovelResource("testDocuments/novels/" + fileName);
+                        final boolean expectedHasTableOfContents = (boolean) testFileEntry.get("hasToc");
 
+                        // Test function
                         final TableOfContentsIsolationResult result =
                                 tableOfContentsIsolationService.isolateTableOfContents(fullBook);
 
-                        System.out.println("=== " + fileName + " ===");
-                        System.out.println("containsTableOfContents: " + result.containsTableOfContents());
-                        if (result.tableOfContents() != null) {
-                            System.out.println("tableOfContents length: " + result.tableOfContents().length());
-                            System.out.println("tableOfContents preview: "
-                                    + result.tableOfContents().substring(0,
-                                    Math.min(500, result.tableOfContents().length())));
-                        }
-                        System.out.println("original length: " + fullBook.length());
-                        System.out.println("cleaned length: " + result.documentWithoutTableOfContents().length());
+                        printHelper(result, fileName, fullBook);
 
-                        final boolean expectedHasToc = (boolean) entry.get("hasToc");
+                        // should correctly determine the presence or absence of a table of contents
                         assertThat(result.containsTableOfContents())
-                                .as("hasToc for %s", fileName)
-                                .isEqualTo(expectedHasToc);
+                                .isEqualTo(expectedHasTableOfContents);
 
-                        if (expectedHasToc) {
-                            @SuppressWarnings("unchecked")
-                            final List<String> tocContains =
-                                    (List<String>) entry.getOrDefault("tocContains", Collections.emptyList());
-                            for (final String expected : tocContains) {
-                                assertThat(result.tableOfContents())
-                                        .as("TOC should contain '%s' in %s", expected, fileName)
-                                        .contains(expected);
-                            }
-                        }
+                        if (result.containsTableOfContents()) {
+                            final List<String> allLinesWithTextInFoundToc = Arrays.stream(result.tableOfContents().trim().split("\n"))
+                                    .filter(ln -> !ln.isBlank())
+                                    .toList();
 
-                        @SuppressWarnings("unchecked")
-                        final List<String> cleanedDocContains =
-                                (List<String>) entry.getOrDefault("cleanedDocContains", Collections.emptyList());
-                        for (final String expected : cleanedDocContains) {
-                            assertThat(result.documentWithoutTableOfContents())
-                                    .as("Cleaned doc should contain '%s' in %s", expected, fileName)
-                                    .contains(expected);
+                            // contains all the expected lines in the table of contents
+                            assertThat(result.tableOfContents()).contains(tocContains);
+
+                            // contains each line only once (hasn't picked up the start of chapter 1 for example)
+                            tocContains.forEach(expectedTocEntry -> {
+                                final var numMatches = allLinesWithTextInFoundToc
+                                        .stream()
+                                        .filter(entry -> entry.equals(expectedTocEntry))
+                                        .toList()
+                                        .size();
+                                assertThat(numMatches).isEqualTo(1);
+                            });
+
+                            tocContains.forEach(tocLine -> {
+                                // not in table of contents
+                                assertThat(result.tableOfContents()).doesNotContain(tocDoesNotContainContains);
+
+                                // is in the rest of teh book
+                                assertThat(result.documentWithoutTableOfContents()).contains(tocDoesNotContainContains);
+                            });
+
+                            // document minus table of contents is less than the original size by the lenght of the
+                            // table of contents
+                            assertThat(result.documentWithoutTableOfContents().length())
+                                    .isEqualTo(fullBook.length() - result.tableOfContents().length());
                         }
                     });
                 });
+    }
+
+    private void printHelper(final TableOfContentsIsolationResult result, final String fileName, final String fullBook) {
+        System.out.println("=== " + fileName + " ===");
+        System.out.println("containsTableOfContents: " + result.containsTableOfContents());
+        if (result.tableOfContents() != null) {
+            System.out.println("tableOfContents length: " + result.tableOfContents().length());
+            System.out.println("tableOfContents preview: "
+                    + result.tableOfContents().substring(0,
+                    Math.min(5000, result.tableOfContents().length())));
+        }
+        System.out.println("original length: " + fullBook.length());
+        System.out.println("cleaned length: " + result.documentWithoutTableOfContents().length());
     }
 
     @SuppressWarnings("unchecked")

@@ -19,10 +19,10 @@ public class TableOfContentsIsolationService {
     }
 
     public TableOfContentsIsolationResult isolateTableOfContents(final String document) {
-        final String sample = document.substring(0,
+        final String frontOfBook = document.substring(0,
                 Math.min(document.length(), TOC_DETECTION_SAMPLE_SIZE));
 
-        final var tools = new TocIsolationTools(sample);
+        final var tools = new TocIsolationTools(frontOfBook);
         final var aiService = aiServiceFactory.create(tools);
 
         LOG.info("(isolateTableOfContents) starting tool-based TOC detection");
@@ -31,7 +31,7 @@ public class TableOfContentsIsolationService {
                 "Analyze this document to determine if it contains a Table of Contents. "
                 + "Start by reading the beginning of the document with extractText, then search "
                 + "for TOC indicators. If you find a TOC, identify its exact boundaries and call "
-                + "markTocBoundary. The document has %d characters.".formatted(sample.length()));
+                + "markTocBoundary. The document has %d characters.".formatted(frontOfBook.length()));
 
         LOG.infof("(isolateTableOfContents) model finished. Response: %s", modelResponse);
 
