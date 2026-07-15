@@ -119,12 +119,21 @@ class TableOfContentsIsolationServiceTest {
         return testFileEntries.stream()
                 .filter(entry -> {
                     final String fileName = (String) entry.get("fileName");
+                    final Boolean skipFile = (Boolean) entry.getOrDefault("skipFile", false);
+
+                    if (skipFile) {
+                        System.out.println("Skipping (set to skip): " + fileName);
+                        return  false;
+                    }
+
                     final boolean available = getClass().getClassLoader()
                             .getResource("testDocuments/novels/" + fileName) != null;
                     if (!available) {
                         System.out.println("Skipping (not found): " + fileName);
+                        return false;
                     }
-                    return available;
+
+                    return true;
                 })
                 .map(testFileEntry -> {
                     final String fileName = (String) testFileEntry.get("fileName");
