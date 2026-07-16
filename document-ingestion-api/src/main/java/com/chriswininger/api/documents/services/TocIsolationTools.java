@@ -8,7 +8,7 @@ public class TocIsolationTools {
 
     private static final Logger LOG = Logger.getLogger(TocIsolationTools.class);
 
-    private static final int MAX_EXTRACT_LENGTH = 2000;
+    private static final int MAX_EXTRACT_LENGTH = 6000;
 
     private final String document;
 
@@ -27,7 +27,7 @@ public class TocIsolationTools {
     }
 
     @Tool("Extracts text from the document between startIndex (inclusive) and endIndex (exclusive). "
-            + "The window is capped at 2000 characters. Use this to read portions of the document.")
+            + "The window is capped at 6000 characters. Use this to read portions of the document.")
     public String extractText(
             @P("The inclusive start index") final int startIndex,
             @P("The exclusive end index") final int endIndex

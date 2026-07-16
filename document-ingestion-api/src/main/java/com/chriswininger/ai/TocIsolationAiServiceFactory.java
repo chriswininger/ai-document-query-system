@@ -62,7 +62,7 @@ public class TocIsolationAiServiceFactory {
         return AiServices.builder(TocIsolationAiService.class)
                 .chatModel(model)
                 .tools(tools)
-                .maxSequentialToolsInvocations(50)
+                .maxSequentialToolsInvocations(125)
                 .build();
     }
 }

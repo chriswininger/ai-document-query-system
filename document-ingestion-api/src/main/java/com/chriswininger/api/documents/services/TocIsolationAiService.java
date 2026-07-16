@@ -11,7 +11,7 @@ public interface TocIsolationAiService {
             locate its exact character boundaries.
 
             Strategy:
-            1. Start by calling extractText(0, 2000) to read the beginning of the document.
+            1. Start by calling extractText(0, 6000) to read the beginning of the document.
             2. Use searchText to find the starting landmark of the Table of Contents (e.g. the
                "Contents" or "Table of Contents" heading) and note the index.
             3. Continue reading forward with extractText to find where the Table of Contents ends.
