@@ -35,7 +35,7 @@ public class TocIsolationAiServiceFactory {
                 .baseUrl(baseUrl)
                 .modelName(modelName)
                 .numCtx(numCtx)
-                .think(true)
+                .think(true) // TODO Make this configurable, some models don't support it
                 .timeout(Duration.ofSeconds(timeoutSeconds));
 
         apiKey.filter(key -> !key.isBlank())
@@ -51,7 +51,8 @@ public class TocIsolationAiServiceFactory {
                 .baseUrl(baseUrl)
                 .modelName(modelName)
                 .numCtx(numCtx)
-                .think(true)
+                .think(true) // TODO Make this configurable, some models don't support it
+                .temperature(0.3)
                 .timeout(Duration.ofSeconds(timeoutSeconds));
 
         apiKey.filter(key -> !key.isBlank())

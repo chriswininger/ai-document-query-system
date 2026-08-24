@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -15,8 +16,14 @@ import org.junit.jupiter.api.Timeout;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -27,8 +34,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 @QuarkusTest
 class TableOfContentsIsolationServiceTest {
 
+    private static final int NOVEL_RUN_COUNT = 5;
+
+    private static final Path OUTPUT_YAML_PATH = Path.of(
+            "src/test/resources/testDocuments/novels/TableOfContentsIsolationServiceTest-Output.yaml");
+
     @Inject
     TableOfContentsIsolationService tableOfContentsIsolationService;
+
+    @ConfigProperty(name = "ollama.toc-isolation.model-name", defaultValue = "gemma4:e4b")
+    String modelName;
+
+    @ConfigProperty(name = "ollama.toc-isolation.num-ctx", defaultValue = "32768")
+    int numCtx;
+
+    @ConfigProperty(name = "ollama.toc-isolation.base-url", defaultValue = "https://ollama.com")
+    String baseUrl;
 
     @Test
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
@@ -109,12 +130,14 @@ class TableOfContentsIsolationServiceTest {
 
     @TestFactory
     @Tag("manual")
-    @Timeout(value = 10, unit = TimeUnit.MINUTES)
+    @Timeout(value = 30, unit = TimeUnit.MINUTES)
     Stream<DynamicTest> isolateTableOfContents_novels() throws IOException {
         final List<Map<String, Object>> testFileEntries = loadTestEntries();
         if (testFileEntries.isEmpty()) {
             return Stream.empty();
         }
+
+        final String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
 
         return testFileEntries.stream()
                 .filter(entry -> {
@@ -123,7 +146,7 @@ class TableOfContentsIsolationServiceTest {
 
                     if (skipFile) {
                         System.out.println("Skipping (set to skip): " + fileName);
-                        return  false;
+                        return false;
                     }
 
                     final boolean available = getClass().getClassLoader()
@@ -147,49 +170,153 @@ class TableOfContentsIsolationServiceTest {
                         final String fullBook = loadNovelResource("testDocuments/novels/" + fileName);
                         final boolean expectedHasTableOfContents = (boolean) testFileEntry.get("hasToc");
 
-                        // Test function
-                        final TableOfContentsIsolationResult result =
-                                tableOfContentsIsolationService.isolateTableOfContents(fullBook);
+                        final List<Map<String, Object>> perRunResults = new ArrayList<>();
+                        final List<Long> runMillis = new ArrayList<>();
+                        Throwable firstFailure = null;
 
-                        printHelper(result, fileName, fullBook);
+                        for (int i = 0; i < NOVEL_RUN_COUNT; i++) {
+                            System.out.printf("=== %s | run %d/%d ===%n", fileName, i + 1, NOVEL_RUN_COUNT);
+                            final long start = System.currentTimeMillis();
+                            Throwable failure = null;
 
-                        // should correctly determine the presence or absence of a table of contents
-                        assertThat(result.containsTableOfContents())
-                                .isEqualTo(expectedHasTableOfContents);
+                            try {
+                                final TableOfContentsIsolationResult result =
+                                        tableOfContentsIsolationService.isolateTableOfContents(fullBook);
 
-                        if (result.containsTableOfContents()) {
-                            final List<String> allLinesWithTextInFoundToc = Arrays.stream(result.tableOfContents().trim().split("\n"))
-                                    .filter(ln -> !ln.isBlank())
-                                    .toList();
+                                printHelper(result, fileName, fullBook);
+                                runAssertions(result, fullBook, expectedHasTableOfContents, tocContains, tocDoesNotContainContains);
+                            } catch (final Throwable t) {
+                                failure = t;
+                                if (firstFailure == null) {
+                                    firstFailure = t;
+                                }
+                                System.out.printf("  run %d FAILED: %s%n", i + 1, t.getMessage());
+                            }
 
-                            // contains all the expected lines in the table of contents
-                            assertThat(result.tableOfContents()).contains(tocContains);
+                            final long elapsed = System.currentTimeMillis() - start;
+                            runMillis.add(elapsed);
 
-                            // contains each line only once (hasn't picked up the start of chapter 1 for example)
-                            tocContains.forEach(expectedTocEntry -> {
-                                final var numMatches = allLinesWithTextInFoundToc
-                                        .stream()
-                                        .filter(entry -> entry.equals(expectedTocEntry))
-                                        .toList()
-                                        .size();
-                                assertThat(numMatches).isEqualTo(1);
-                            });
+                            final Map<String, Object> runEntry = new LinkedHashMap<>();
+                            runEntry.put("time", formatDuration(elapsed));
+                            runEntry.put("passed", failure == null);
+                            perRunResults.add(runEntry);
+                        }
 
-                            tocContains.forEach(tocLine -> {
-                                // not in table of contents
-                                assertThat(result.tableOfContents()).doesNotContain(tocDoesNotContainContains);
+                        final long avgMillis = runMillis.stream().mapToLong(Long::longValue).sum() / runMillis.size();
+                        final long totalPassed = perRunResults.stream().filter(r -> Boolean.TRUE.equals(r.get("passed"))).count();
+                        final long totalFailed = NOVEL_RUN_COUNT - totalPassed;
 
-                                // is in the rest of teh book
-                                assertThat(result.documentWithoutTableOfContents()).contains(tocDoesNotContainContains);
-                            });
+                        appendBookResultToOutputYaml(timestamp, fileName, perRunResults, avgMillis, totalPassed, totalFailed);
 
-                            // document minus table of contents is less than the original size by the lenght of the
-                            // table of contents
-                            assertThat(result.documentWithoutTableOfContents().length())
-                                    .isEqualTo(fullBook.length() - result.tableOfContents().length());
+                        if (firstFailure != null) {
+                            throw firstFailure;
                         }
                     });
                 });
+    }
+
+    private void runAssertions(
+            final TableOfContentsIsolationResult result,
+            final String fullBook,
+            final boolean expectedHasTableOfContents,
+            final List<String> tocContains,
+            final List<String> tocDoesNotContainContains
+    ) {
+        assertThat(result.containsTableOfContents()).isEqualTo(expectedHasTableOfContents);
+
+        if (result.containsTableOfContents()) {
+            final List<String> allLinesWithTextInFoundToc = Arrays.stream(result.tableOfContents().trim().split("\n"))
+                    .filter(ln -> !ln.isBlank())
+                    .toList();
+
+            assertThat(result.tableOfContents()).contains(tocContains);
+
+            tocContains.forEach(expectedTocEntry -> {
+                final var numMatches = allLinesWithTextInFoundToc
+                        .stream()
+                        .filter(entry -> entry.equals(expectedTocEntry))
+                        .toList()
+                        .size();
+                assertThat(numMatches).isEqualTo(1);
+            });
+
+            tocContains.forEach(tocLine -> {
+                assertThat(result.tableOfContents()).doesNotContain(tocDoesNotContainContains);
+                assertThat(result.documentWithoutTableOfContents()).contains(tocDoesNotContainContains);
+            });
+
+            assertThat(result.documentWithoutTableOfContents().length())
+                    .isEqualTo(fullBook.length() - result.tableOfContents().length());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void appendBookResultToOutputYaml(
+            final String timestamp,
+            final String fileName,
+            final List<Map<String, Object>> perRunResults,
+            final long avgMillis,
+            final long totalPassed,
+            final long totalFailed
+    ) {
+        try {
+            final ObjectMapper yaml = new ObjectMapper(new YAMLFactory());
+
+            Map<String, Object> root;
+            if (Files.exists(OUTPUT_YAML_PATH)) {
+                root = yaml.readValue(OUTPUT_YAML_PATH.toFile(), Map.class);
+            } else {
+                root = new LinkedHashMap<>();
+            }
+
+            // Find or create the run entry for this timestamp
+            final List<Map<String, Object>> runs =
+                    (List<Map<String, Object>>) root.computeIfAbsent("runs", k -> new ArrayList<>());
+
+            Map<String, Object> currentRun = runs.stream()
+                    .filter(r -> timestamp.equals(r.get("timestamp")))
+                    .findFirst()
+                    .orElse(null);
+
+            if (currentRun == null) {
+                currentRun = new LinkedHashMap<>();
+                currentRun.put("timestamp", timestamp);
+                currentRun.put("model", modelName);
+                currentRun.put("numCtx", numCtx);
+                currentRun.put("baseUrl", baseUrl);
+                currentRun.put("books", new ArrayList<>());
+                runs.add(currentRun);
+            }
+
+            final List<Map<String, Object>> books =
+                    (List<Map<String, Object>>) currentRun.get("books");
+
+            final Map<String, Object> bookEntry = new LinkedHashMap<>();
+            bookEntry.put("fileName", fileName);
+            bookEntry.put("runs", perRunResults);
+            bookEntry.put("averageTime", formatDuration(avgMillis));
+            bookEntry.put("totalPassed", totalPassed);
+            bookEntry.put("totalFailed", totalFailed);
+            books.add(bookEntry);
+
+            final boolean allPass = books.stream()
+                    .allMatch(b -> Long.valueOf(0L).equals(b.get("totalFailed")));
+            currentRun.put("allPass", allPass);
+
+            Files.createDirectories(OUTPUT_YAML_PATH.getParent());
+            yaml.writeValue(OUTPUT_YAML_PATH.toFile(), root);
+
+            System.out.printf("Output written to %s%n", OUTPUT_YAML_PATH.toAbsolutePath());
+        } catch (final IOException e) {
+            System.err.println("Failed to write output YAML: " + e.getMessage());
+        }
+    }
+
+    private String formatDuration(final long millis) {
+        final long totalSeconds = millis / 1000;
+        final long minutes = totalSeconds / 60;
+        final long seconds = totalSeconds % 60;
+        return minutes > 0 ? "%dm %ds".formatted(minutes, seconds) : "%ds".formatted(seconds);
     }
 
     private void printHelper(final TableOfContentsIsolationResult result, final String fileName, final String fullBook) {

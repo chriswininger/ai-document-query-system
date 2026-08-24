@@ -2,6 +2,10 @@
 # Syncs src/test/resources/testDocuments/ to the private test-data repo.
 # Run from the workspace root:
 #   bash document-ingestion-api/scripts/upload-test-documents.sh
+#
+# The sync mirrors deletions. If files would be removed from the archive the
+# script stops and lists them; re-run with FORCE=1 to go ahead:
+#   FORCE=1 bash document-ingestion-api/scripts/upload-test-documents.sh
 set -euo pipefail
 
 REPO="git@github.com:chriswininger/document-ingestion-test-data.git"
@@ -12,11 +16,30 @@ if [ ! -d "$SRC" ]; then
   exit 1
 fi
 
+# testDocuments/ is fully gitignored, so a fresh clone of this repo starts out
+# empty. Mirroring that emptiness would wipe the only private copy.
+if [ -z "$(find "$SRC" -type f -not -name '.gitignore' -print -quit)" ]; then
+  echo "ERROR: $SRC contains no files — refusing to sync." >&2
+  echo "       Run download-test-documents.sh first." >&2
+  exit 1
+fi
+
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
 echo "Cloning $REPO ..."
 git clone "$REPO" "$TMP/repo"
+
+DELETIONS=$(rsync -a --delete --dry-run --itemize-changes \
+  "$SRC/" "$TMP/repo/testDocuments/" | { grep '^\*deleting' || true; })
+
+if [ -n "$DELETIONS" ] && [ "${FORCE:-0}" != "1" ]; then
+  echo "WARNING: this sync would remove the following from the archive:" >&2
+  printf '%s\n' "$DELETIONS" >&2
+  echo >&2
+  echo "Re-run with FORCE=1 if that is intended." >&2
+  exit 1
+fi
 
 echo "Syncing testDocuments/ ..."
 rsync -a --delete "$SRC/" "$TMP/repo/testDocuments/"

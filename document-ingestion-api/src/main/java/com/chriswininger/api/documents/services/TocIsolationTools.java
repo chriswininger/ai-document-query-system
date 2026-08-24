@@ -52,6 +52,56 @@ public class TocIsolationTools {
         return result;
     }
 
+    @Tool("Extracts up to lineCount lines starting from the line that contains fromIndex. "
+            + "Returns the text prefixed with the character offset of the first returned line, "
+            + "e.g. '[charOffset=2018]\\n...'. Total output is capped at 6000 characters. "
+            + "Use this instead of extractText when you want to read content line by line "
+            + "and need the exact starting character offset of the result.")
+    public String extractLines(
+            @P("Character index of any position within the first line to return") final int fromIndex,
+            @P("Maximum number of lines to return") final int lineCount
+    ) {
+        final int clamped = Math.max(0, Math.min(document.length() - 1, fromIndex));
+        final int firstLineStart = document.lastIndexOf('\n', clamped - 1) + 1;
+
+        int pos = firstLineStart;
+        int linesCollected = 0;
+        final StringBuilder sb = new StringBuilder();
+
+        while (linesCollected < lineCount && pos < document.length() && sb.length() < MAX_EXTRACT_LENGTH) {
+            final int nlPos = document.indexOf('\n', pos);
+            final int lineEnd = nlPos == -1 ? document.length() : nlPos + 1;
+            final String line = document.substring(pos, Math.min(lineEnd, document.length()));
+            if (sb.length() + line.length() > MAX_EXTRACT_LENGTH) {
+                break;
+            }
+            sb.append(line);
+            linesCollected++;
+            pos = lineEnd;
+            if (nlPos == -1) {
+                break;
+            }
+        }
+
+        LOG.infof("(extractLines) fromIndex=%d lineCount=%d -> charOffset=%d lines=%d chars=%d",
+                fromIndex, lineCount, firstLineStart, linesCollected, sb.length());
+        return "[charOffset=%d]\n%s".formatted(firstLineStart, sb);
+    }
+
+    @Tool("Returns the start (inclusive) and end (exclusive) character indices of the line "
+            + "containing the given character index. Use this to snap a rough index to a clean "
+            + "line boundary before calling markTocBoundary.")
+    public int[] getLineRange(
+            @P("Any character index within the line") final int characterIndex
+    ) {
+        final int clamped = Math.max(0, Math.min(document.length() - 1, characterIndex));
+        final int lineStart = document.lastIndexOf('\n', clamped - 1) + 1;
+        final int rawEnd = document.indexOf('\n', clamped);
+        final int lineEnd = rawEnd == -1 ? document.length() : rawEnd + 1;
+        LOG.infof("(getLineRange) index=%d -> line [%d, %d)", characterIndex, lineStart, lineEnd);
+        return new int[]{lineStart, lineEnd};
+    }
+
     @Tool("Marks the start and end character indices of the Table of Contents. "
             + "Call this once you have identified the exact TOC boundaries. "
             + "startIndex is inclusive, endIndex is exclusive.")

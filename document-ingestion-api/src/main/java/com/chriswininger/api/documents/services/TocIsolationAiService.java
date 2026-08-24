@@ -11,12 +11,19 @@ public interface TocIsolationAiService {
             locate its exact character boundaries.
 
             Strategy:
-            1. Start by calling extractText(0, 6000) to read the beginning of the document.
+            1. Start by calling extractLines(0, 80) to read the beginning of the document line by line.
+               The result includes a [charOffset=N] header telling you the exact character offset of
+               the first line — use that when you need to pass indices to other tools.
             2. Use searchText to find the starting landmark of the Table of Contents (e.g. the
                "Contents" or "Table of Contents" heading) and note the index.
-            3. Continue reading forward with extractText to find where the Table of Contents ends.
-            4. If it looks like you've gone past the end, step back, reducing the endIndex passed to extractText.
-            5. Once you have identified the start and end indices, call markTocBoundary(startIndex, endIndex).
+            3. Use extractLines(tocStartIndex, 60) to read through the TOC and spot the first line
+               of non-TOC content (narrative prose). The charOffset header gives you the starting
+               index so you can call extractLines again from exactly where you left off if needed.
+            4. Call getLineRange on your rough start index and your rough end index to snap each
+               to a clean line boundary.
+            5. Call markTocBoundary(startIndex, endIndex) immediately using those snapped values.
+               Do NOT make repeated small extractText calls just to locate line edges — that is
+               exactly what getLineRange is for.
 
             How to tell Table of Contents entries apart from actual book content:
             - Table of Contents entries are SHORT lines — each is just a chapter/section title, one per line,
@@ -35,10 +42,10 @@ public interface TocIsolationAiService {
             - Do NOT stop at the first blank line or section break — a Table of Contents often has
               multiple sections (Part I, Part II, etc.) separated by blank lines.
             - Do NOT include actual chapter content or narrative prose in the boundary.
-            - After you think you have found the end, call extractText on the region just after your
-              proposed end to VERIFY that what follows is actual prose, not more Table of Contents entries.
-            - You may call tools many times. Keep reading forward or backwards until you are certain you
-              have found the true end of the Table of Contents.
+            - After you think you have found the end, you may call extractText on a small window just
+              after your proposed end to VERIFY that what follows is actual prose — but do this at most once.
+            - Once you have used searchText and extractText to identify approximate boundaries, call
+              getLineRange on each index and then markTocBoundary immediately. Do not continue probing.
 
             Example 1:
             ```

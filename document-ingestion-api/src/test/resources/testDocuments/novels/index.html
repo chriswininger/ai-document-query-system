@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TOC Isolation Benchmarks</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1c1f23;
+    --muted: #6b7280;
+    --border: #e3e6ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181c;
+      --card: #1f2228;
+      --text: #e8eaed;
+      --muted: #9aa1ab;
+      --border: #2e3238;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 24px 64px;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header { max-width: 1200px; margin: 0 auto 24px; }
+  h1 { margin: 0 0 6px; font-size: 24px; font-weight: 650; letter-spacing: -0.01em; }
+  .subtitle { margin: 0; color: var(--muted); font-size: 14px; }
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+    gap: 20px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 18px 12px;
+  }
+  .card h2 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .card .meta { margin: 0 0 12px; color: var(--muted); font-size: 12.5px; }
+  .chart-wrap { position: relative; height: 320px; }
+  .divider {
+    max-width: 1200px;
+    margin: 40px auto 28px;
+    border: 0;
+    border-top: 1px solid var(--border);
+  }
+  #overall { max-width: 1200px; margin: 0 auto; }
+  #overall-table { margin-top: 20px; }
+  .section-title { margin: 0 0 6px; font-size: 20px; font-weight: 650; letter-spacing: -0.01em; }
+  .section-subtitle { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+  .table-wrap { overflow-x: auto; margin-bottom: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td {
+    padding: 7px 10px;
+    text-align: right;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  thead th { color: var(--muted); font-weight: 600; }
+  th.row-header, thead th:first-child { text-align: left; }
+  td.rate-zero { color: var(--muted); }
+  td.rate-bad { color: rgb(180, 83, 9); font-weight: 600; }
+  @media (prefers-color-scheme: dark) {
+    td.rate-bad { color: rgb(245, 158, 11); }
+  }
+  td.rate-missing { color: var(--muted); }
+  .col-total { border-left: 1px solid var(--border); }
+  #status {
+    max-width: 1200px;
+    margin: 0 auto 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .hidden { display: none; }
+  #status h2 { margin: 0 0 8px; font-size: 16px; }
+  #status p { margin: 0 0 10px; color: var(--muted); }
+  code {
+    background: rgba(127, 127, 127, 0.16);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Table of contents isolation benchmarks</h1>
+  <p class="subtitle">Average run time per novel, grouped by host and model, with a cross-book summary below. Entries where every run failed at 0s never reached the API and are excluded. Orange bars had at least one failing run.</p>
+</header>
+
+<div id="status" class="hidden"></div>
+<main id="charts"></main>
+
+<hr id="divider" class="divider hidden">
+<section id="overall" class="hidden">
+  <h2 class="section-title">Average across all books</h2>
+  <p class="section-subtitle">Every run from every book pooled per host and model. The red line reads against the right-hand failure rate axis.</p>
+  <div id="overall-chart"></div>
+  <div id="overall-table"></div>
+</section>
+
+<script>
+const YAML_PATH = './TableOfContentsIsolationServiceTest-Output.yaml';
+const LOCAL_BASE_URL = 'http://100.87.153.22:11434';
+const KEY_SEPARATOR = ' / ';
+const MAX_MODEL_LABEL = 24;
+const MAX_BOOK_HEADER = 22;
+
+const statusEl = document.getElementById('status');
+const chartsEl = document.getElementById('charts');
+const dividerEl = document.getElementById('divider');
+const overallEl = document.getElementById('overall');
+const overallChartEl = document.getElementById('overall-chart');
+const overallTableEl = document.getElementById('overall-table');
+
+function parseTimeToSeconds(value) {
+  if (value == null) return 0;
+  const text = String(value);
+  let total = 0;
+  const pattern = /(\d+(?:\.\d+)?)\s*(h|m|s)/g;
+  let match;
+  while ((match = pattern.exec(text)) !== null) {
+    const amount = parseFloat(match[1]);
+    if (match[2] === 'h') total += amount * 3600;
+    else if (match[2] === 'm') total += amount * 60;
+    else total += amount;
+  }
+  return total;
+}
+
+function formatSeconds(seconds) {
+  const rounded = Math.round(seconds);
+  const hours = Math.floor(rounded / 3600);
+  const minutes = Math.floor((rounded % 3600) / 60);
+  const secs = rounded % 60;
+  if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+  if (minutes > 0) return `${minutes}m ${secs}s`;
+  return `${secs}s`;
+}
+
+// Rates here are small (the worst is 8.6%), so keep a decimal below 10% rather than
+// rounding 0.5% down to 0% next to a literal "(1/210)".
+function formatPercent(rate) {
+  if (rate === 0) return '0%';
+  return rate < 10 ? `${rate.toFixed(1)}%` : `${Math.round(rate)}%`;
+}
+
+function failureRate(group) {
+  return (group.failedCount / group.runCount) * 100;
+}
+
+function shortBaseUrl(baseUrl) {
+  if (baseUrl === LOCAL_BASE_URL) return 'local';
+  try {
+    return new URL(baseUrl).hostname;
+  } catch {
+    return baseUrl;
+  }
+}
+
+function groupKey(entry) {
+  return `${shortBaseUrl(entry.baseUrl)}${KEY_SEPARATOR}${entry.model}`;
+}
+
+// Cuts at the last word boundary inside the budget so we do not slice mid-word, falling
+// back to a hard cut when the nearest boundary would leave too little of the name.
+function truncateAtBoundary(text, max, boundaries = ['-', '_', '/', '.', ':']) {
+  if (text.length <= max) return text;
+
+  const head = text.slice(0, max);
+  const endsOnBoundary = boundaries.includes(text[max]);
+  const boundary = Math.max(...boundaries.map(char => head.lastIndexOf(char)));
+  const kept = endsOnBoundary || boundary < max / 2 ? head : head.slice(0, boundary);
+  return `${kept.replace(/[-_/.:\s]+$/, '')}...`;
+}
+
+// Long model names blow out the x axis, so shorten the model portion of a key for the
+// tick label. Tooltips show the full key.
+function shortenKey(key) {
+  const separatorIndex = key.indexOf(KEY_SEPARATOR);
+  const prefix = separatorIndex === -1 ? '' : key.slice(0, separatorIndex + KEY_SEPARATOR.length);
+  const model = key.slice(prefix.length);
+  return `${prefix}${truncateAtBoundary(model, MAX_MODEL_LABEL)}`;
+}
+
+// Entries where every run both failed and took 0s never reached the API, so they are
+// noise rather than benchmark data. Entries with only some failures are kept, as are
+// all-failed entries that actually spent time, since those are real results.
+function filterAllFailedZeroSecondRuns(books) {
+  return books.filter(book => {
+    const bookRuns = book.runs ?? [];
+    return bookRuns.length > 0 &&
+      !bookRuns.every(run => !run.passed && parseTimeToSeconds(run.time) === 0);
+  });
+}
+
+// Novel -> group -> aggregate over every test run, dropping book entries that never
+// reached the API. Per-entry averageTime is ignored so the mean spans all runs.
+function aggregate(doc) {
+  const novels = new Map();
+
+  for (const testRun of doc?.runs ?? []) {
+    const key = groupKey(testRun);
+
+    for (const book of filterAllFailedZeroSecondRuns(testRun.books ?? [])) {
+      const bookRuns = book.runs;
+
+      if (!novels.has(book.fileName)) novels.set(book.fileName, new Map());
+      const groups = novels.get(book.fileName);
+      if (!groups.has(key)) {
+        groups.set(key, { key, totalSeconds: 0, runCount: 0, failedCount: 0, entryCount: 0 });
+      }
+
+      const group = groups.get(key);
+      group.entryCount += 1;
+      for (const run of bookRuns) {
+        group.totalSeconds += parseTimeToSeconds(run.time);
+        group.runCount += 1;
+        if (!run.passed) group.failedCount += 1;
+      }
+    }
+  }
+
+  return [...novels].map(([fileName, groups]) => ({
+    fileName,
+    groups: [...groups.values()]
+      .map(group => ({ ...group, averageSeconds: group.totalSeconds / group.runCount }))
+      .sort((a, b) => a.averageSeconds - b.averageSeconds)
+  }));
+}
+
+// One entry per host/model, pooling every run from every book. Longer novels naturally
+// dominate this mean, which is the point: it is a whole-suite cost per model.
+function aggregateOverall(doc) {
+  const groups = new Map();
+
+  for (const testRun of doc?.runs ?? []) {
+    const key = groupKey(testRun);
+
+    for (const book of filterAllFailedZeroSecondRuns(testRun.books ?? [])) {
+      if (!groups.has(key)) {
+        groups.set(key, { key, totalSeconds: 0, runCount: 0, failedCount: 0, books: new Set() });
+      }
+
+      const group = groups.get(key);
+      group.books.add(book.fileName);
+      for (const run of book.runs) {
+        group.totalSeconds += parseTimeToSeconds(run.time);
+        group.runCount += 1;
+        if (!run.passed) group.failedCount += 1;
+      }
+    }
+  }
+
+  return [...groups.values()]
+    .map(group => ({
+      ...group,
+      bookCount: group.books.size,
+      averageSeconds: group.totalSeconds / group.runCount
+    }))
+    .sort((a, b) => a.averageSeconds - b.averageSeconds);
+}
+
+const FAILURE_RATE_AXIS = 'failureRate';
+
+// `detail` supplies the parenthetical after the run count, since the per-novel charts
+// count book entries while the cross-book chart counts books. `failureLine` overlays a
+// failure rate series on a second axis, which only the cross-book chart asks for.
+function barChartConfig(groups, detail, { failureLine = false } = {}) {
+  const datasets = [{
+    label: 'Average time',
+    data: groups.map(group => group.averageSeconds),
+    backgroundColor: groups.map(group =>
+      group.failedCount > 0 ? 'rgba(217, 119, 6, 0.75)' : 'rgba(37, 99, 235, 0.75)'),
+    borderColor: groups.map(group =>
+      group.failedCount > 0 ? 'rgb(180, 83, 9)' : 'rgb(29, 78, 216)'),
+    borderWidth: 1,
+    borderRadius: 4,
+    order: 1
+  }];
+
+  const scales = {
+    y: {
+      beginAtZero: true,
+      title: { display: true, text: 'Average time' },
+      ticks: { callback: value => formatSeconds(value) }
+    },
+    x: { ticks: { autoSkip: false, maxRotation: 60, minRotation: 0 } }
+  };
+
+  if (failureLine) {
+    datasets.push({
+      type: 'line',
+      label: 'Failure rate',
+      yAxisID: FAILURE_RATE_AXIS,
+      data: groups.map(failureRate),
+      borderColor: 'rgb(220, 38, 38)',
+      backgroundColor: 'rgb(220, 38, 38)',
+      borderWidth: 2,
+      pointRadius: 4,
+      tension: 0.25,
+      order: 0
+    });
+
+    // Headroom keeps the line riding above the bar tops instead of cutting through them.
+    scales[FAILURE_RATE_AXIS] = {
+      position: 'right',
+      beginAtZero: true,
+      grace: '30%',
+      title: { display: true, text: 'Failure rate' },
+      ticks: { callback: value => formatPercent(value) },
+      grid: { drawOnChartArea: false }
+    };
+  }
+
+  return {
+    type: 'bar',
+    data: {
+      labels: groups.map(group => shortenKey(group.key)),
+      datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: failureLine ? { mode: 'index', intersect: false } : undefined,
+      plugins: {
+        legend: { display: failureLine },
+        tooltip: {
+          callbacks: {
+            title(items) {
+              return groups[items[0].dataIndex].key;
+            },
+            label(context) {
+              const group = groups[context.dataIndex];
+              if (context.dataset.yAxisID === FAILURE_RATE_AXIS) {
+                return `Failure rate ${formatPercent(failureRate(group))} (${group.failedCount}/${group.runCount})`;
+              }
+              return `Avg ${formatSeconds(group.averageSeconds)} (${group.runCount} runs, ${detail(group)})`;
+            },
+            afterLabel(context) {
+              const group = groups[context.dataIndex];
+              if (context.dataset.yAxisID === FAILURE_RATE_AXIS) return undefined;
+              if (group.failedCount === 0) return undefined;
+              return `${group.failedCount}/${group.runCount} runs failed`;
+            }
+          }
+        }
+      },
+      scales
+    }
+  };
+}
+
+function pluralize(count, singular, plural = singular + 's') {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function buildCard(container, titleText, metaText) {
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const title = document.createElement('h2');
+  title.textContent = titleText;
+  card.appendChild(title);
+
+  const meta = document.createElement('p');
+  meta.className = 'meta';
+  meta.textContent = metaText;
+  card.appendChild(meta);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'chart-wrap';
+  const canvas = document.createElement('canvas');
+  wrap.appendChild(canvas);
+  card.appendChild(wrap);
+  container.appendChild(card);
+
+  return canvas;
+}
+
+function groupsMeta(groups) {
+  const totalRuns = groups.reduce((sum, group) => sum + group.runCount, 0);
+  return `${pluralize(groups.length, 'host/model combination')}, ${pluralize(totalRuns, 'run')}`;
+}
+
+function bookTitle(fileName) {
+  return fileName.replace(/\.txt$/, '');
+}
+
+function appendCell(row, tag, text, { className, title } = {}) {
+  const cell = document.createElement(tag);
+  cell.textContent = text;
+  if (className) cell.className = className;
+  if (title) cell.setAttribute('title', title);
+  row.appendChild(cell);
+  return cell;
+}
+
+// A model/book pair with no surviving entry never reached the API for that book.
+function appendRateCell(row, group, extraClass = '') {
+  if (!group) {
+    appendCell(row, 'td', '\u2014', { className: `rate-missing ${extraClass}`.trim(), title: 'No runs reached the API' });
+    return;
+  }
+
+  const rate = failureRate(group);
+  const state = rate > 0 ? 'rate-bad' : 'rate-zero';
+  appendCell(row, 'td', `${formatPercent(rate)} (${group.failedCount}/${group.runCount})`, {
+    className: `${state} ${extraClass}`.trim()
+  });
+}
+
+// Pivot the per-novel aggregates into model rows by book columns. Row order follows the
+// chart's bars so the two line up, and columns follow the order books appear in the YAML.
+function renderFailureTable(novelStats, overallGroups) {
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const title = document.createElement('h2');
+  title.textContent = 'Failure rate by model and book';
+  card.appendChild(title);
+
+  const meta = document.createElement('p');
+  meta.className = 'meta';
+  meta.textContent = `${pluralize(overallGroups.length, 'model')} against ${pluralize(novelStats.length, 'book')}`;
+  card.appendChild(meta);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'table-wrap';
+  const table = document.createElement('table');
+
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  appendCell(headRow, 'th', 'Host / model');
+  for (const novel of novelStats) {
+    const full = bookTitle(novel.fileName);
+    appendCell(headRow, 'th', truncateAtBoundary(full, MAX_BOOK_HEADER, [' ', '-', '_', '(']), { title: full });
+  }
+  appendCell(headRow, 'th', 'All books', { className: 'col-total' });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  for (const overallGroup of overallGroups) {
+    const row = document.createElement('tr');
+    appendCell(row, 'th', shortenKey(overallGroup.key), { className: 'row-header', title: overallGroup.key });
+
+    for (const novel of novelStats) {
+      appendRateCell(row, novel.groups.find(group => group.key === overallGroup.key));
+    }
+    appendRateCell(row, overallGroup, 'col-total');
+
+    tbody.appendChild(row);
+  }
+  table.appendChild(tbody);
+
+  wrap.appendChild(table);
+  card.appendChild(wrap);
+  overallTableEl.appendChild(card);
+}
+
+function render(novelStats, overallGroups) {
+  chartsEl.textContent = '';
+  overallChartEl.textContent = '';
+  overallTableEl.textContent = '';
+
+  for (const novel of novelStats) {
+    if (novel.groups.length === 0) continue;
+
+    const canvas = buildCard(chartsEl, bookTitle(novel.fileName), groupsMeta(novel.groups));
+    new Chart(canvas, barChartConfig(novel.groups, group => pluralize(group.entryCount, 'entry', 'entries')));
+  }
+
+  if (overallGroups.length > 0) {
+    const canvas = buildCard(overallChartEl, 'All books', groupsMeta(overallGroups));
+    new Chart(canvas, barChartConfig(
+      overallGroups,
+      group => pluralize(group.bookCount, 'book'),
+      { failureLine: true }
+    ));
+    renderFailureTable(novelStats, overallGroups);
+    dividerEl.classList.remove('hidden');
+    overallEl.classList.remove('hidden');
+  }
+}
+
+function showStatus(html) {
+  statusEl.innerHTML = html;
+  statusEl.classList.remove('hidden');
+}
+
+function loadFromText(text) {
+  const doc = jsyaml.load(text);
+  render(aggregate(doc), aggregateOverall(doc));
+  statusEl.classList.add('hidden');
+}
+
+function showLoadFallback(message) {
+  showStatus(`
+    <h2>Could not load the YAML automatically</h2>
+    <p>${message}</p>
+    <p>Browsers block <code>fetch</code> on <code>file://</code> URLs. Serve this folder instead:
+      <code>python3 -m http.server</code> from the <code>novels</code> directory, then open
+      <code>http://localhost:8000/index.html</code>.</p>
+    <p>Or pick the YAML file manually:</p>
+    <input type="file" id="picker" accept=".yaml,.yml">
+  `);
+  document.getElementById('picker').addEventListener('change', async event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      loadFromText(await file.text());
+    } catch (error) {
+      showLoadFallback(`Failed to parse that file: ${error.message}`);
+    }
+  });
+}
+
+(async function init() {
+  try {
+    const response = await fetch(YAML_PATH);
+    if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
+    loadFromText(await response.text());
+  } catch (error) {
+    showLoadFallback(error.message);
+  }
+})();
+</script>
+</body>
+</html>
