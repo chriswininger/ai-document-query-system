@@ -21,6 +21,9 @@ fi
 
 echo "Syncing to $DEST ..."
 mkdir -p "$DEST"
-rsync -a --delete "$TMP/repo/testDocuments/" "$DEST/"
+# The archive deliberately omits .gitignore. Excluding it here keeps --delete
+# from removing the local bare '*' that hides these fixtures from the public
+# repo — it is untracked, so it could not be restored from git.
+rsync -a --delete --exclude='.gitignore' "$TMP/repo/testDocuments/" "$DEST/"
 
 echo "Done. Test documents are ready at $DEST"

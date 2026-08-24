@@ -30,7 +30,12 @@ trap 'rm -rf "$TMP"' EXIT
 echo "Cloning $REPO ..."
 git clone "$REPO" "$TMP/repo"
 
-DELETIONS=$(rsync -a --delete --dry-run --itemize-changes \
+# The local testDocuments/.gitignore is a bare '*' that keeps these fixtures out
+# of the public repo. Copying it into the archive would make git ignore every
+# file we just synced, so it stays behind.
+RSYNC_OPTS=(-a --delete --exclude='.gitignore')
+
+DELETIONS=$(rsync "${RSYNC_OPTS[@]}" --dry-run --itemize-changes \
   "$SRC/" "$TMP/repo/testDocuments/" | { grep '^\*deleting' || true; })
 
 if [ -n "$DELETIONS" ] && [ "${FORCE:-0}" != "1" ]; then
@@ -42,7 +47,7 @@ if [ -n "$DELETIONS" ] && [ "${FORCE:-0}" != "1" ]; then
 fi
 
 echo "Syncing testDocuments/ ..."
-rsync -a --delete "$SRC/" "$TMP/repo/testDocuments/"
+rsync "${RSYNC_OPTS[@]}" "$SRC/" "$TMP/repo/testDocuments/"
 
 cd "$TMP/repo"
 
